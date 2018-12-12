@@ -1,7 +1,12 @@
 import numpy
 import powerbox
+import time
+import numexpr
+
 from matplotlib import pyplot
+from matplotlib.widgets import Slider
 from scipy.constants import c as light_speed
+
 import sys
 sys.path.append('../../../redundant_calibration/code/SCAR')
 from RadioTelescope import antenna_gain_creator
@@ -11,89 +16,87 @@ from SkyModel import flux_list_to_sky_image
 from SkyModel import flux_distribution
 from SkyModel import uv_list_to_baseline_measurements
 
+
+""""
+TODO - curved sky
+- multi frequency optimisation
+
+"""
+
+
 def main():
-    nu_low = 140e6
-    bandwidth = 32e6  # MHz
-    nu_resolution = 40e3  # MHz
+    nu_low = 150e6
+    bandwidth = 40e6  # MHz
+    nu_resolution = 1e6 # MHz
     number_channels = bandwidth / nu_resolution
     frequency_range = numpy.linspace(nu_low, nu_low + bandwidth, number_channels)
 
     # create array
-    sky_param = ['background', 200, 0.05, 0.]
+    sky_param = ['point', 200, 0.05, 0.]
     noise_param = [False, 20e3, 40e3, 120]
     beam_param = ['gaussian', 0.25, 0.25]
-    telescope_param = ["hex", 14., 0, 0]
+    # telescope_param = ["hex", 14., 0, 0]
+    telescope_param = ["linear", 1e2, 5, 0]
 
-    # Create Telescope
+    covariance = visibility_beam_covariance(telescope_param, frequency_range, sky_param)
+    pyplot.imshow(covariance)
+    pyplot.show()
+
+    return
+
+
+def visibility_beam_covariance(telescope_param, frequency_range, sky_param, sky_seed = 0):
     xyz_positions = xyz_position_creator(telescope_param)
     gain_table = antenna_gain_creator(xyz_positions, frequency_range)
     baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range)
 
-    visibilities = numpy.zeros((frequency_range.shape[0], 16), dtype=complex)
-    for off_dipole in range(16):
-        visibilities[:, off_dipole] = numerical_visibilities(numpy.array([baseline_table[0, :]]), frequency_range, off_dipole, 0)
-        print("Running visibility calculation for", off_dipole)
-    covariance = numpy.cov(visibilities)
 
-
-    pyplot.pcolor(frequency_range, frequency_range, numpy.real(covariance))
-    pyplot.show()
-    return
-
-
-def numerical_visibilities(baseline_table, frequencies, faulty_dipole, seed):
-    numpy.random.seed(seed)
-
-    n_measurements = baseline_table.shape[0]
-    n_frequencies = frequencies.shape[0]
-
-    # Select the sky model
-    all_flux, all_l, all_m = flux_distribution(['random', seed])
+    if sky_param[0] == 'random':
+        all_flux, all_l, all_m = flux_distribution(['random', sky_seed])
+    elif sky_param[0] == 'point':
+        all_flux, all_l, all_m = flux_distribution(['single', sky_param[1],
+                                                    sky_param[2], sky_param[3]])
     point_source_list = numpy.stack((all_flux, all_l, all_m), axis=1)
-    point_source_list = numpy.array([[200,0.1,0.1]])
-    # Calculate the ideal measured amplitudes for these sources at different
-    # frequencies
-    sky_cube, l_coordinates, m_coordinates = flux_list_to_sky_image(point_source_list, baseline_table)
-    delta_l = numpy.diff(l_coordinates)
 
-    # convert l and m coordinates into theta,phi in which the beam is defined
-    # note this doesn't take into account the curvature of the sky
-    ll, mm, ff = numpy.meshgrid(l_coordinates, m_coordinates, frequencies)
+    print("Creating the sky\n")
+    sky_cube, l_coordinates, m_coordinates = flux_list_to_sky_image(point_source_list, baseline_table)
+    ll, mm, ff = numpy.meshgrid(l_coordinates, m_coordinates, frequency_range)
     tt, pp, = lm_to_theta_phi(ll, mm)
 
-    beam1_image = mwa_tile_beam(tt, pp, frequency=ff)
+    print("Creating the idealised MWA beam\n")
+    ideal_beam = mwa_tile_beam(tt, pp, frequency=ff)
+    interactive_frequency_plotter(ideal_beam)
 
-    dipole_weights = numpy.zeros(16) + 1
-    dipole_weights[faulty_dipole] = 0
-    beam2_image = mwa_tile_beam(tt, pp, weights=dipole_weights, frequency=ff)
+    baseline_index = 0
+    baseline_selection = numpy.array([baseline_table[baseline_index]])
+    visibility_realisations = numpy.zeros((frequency_range.shape[0], 16), dtype=complex)
 
-    beam1_normed = beam1_image / numpy.max(numpy.abs(beam1_image))
-    beam2_normed = beam2_image / numpy.max(numpy.abs(beam2_image))
+    print("Iterating of 16 realisations of a perturbed MWA beam\n")
+    for faulty_dipole in range(16):
+        dipole_weights = numpy.zeros(16) + 1
+        dipole_weights[faulty_dipole] = 0
+        perturbed_beam = mwa_tile_beam(tt, pp, weights=dipole_weights, frequency=ff)
 
-    #figure = pyplot.figure()
-    #model_beamplot = figure.add_subplot(131)
-    #off_beamplot = figure.add_subplot(132)
-    #diff_beamplot = figure.add_subplot(133)
 
-    #model_beamplot.imshow(numpy.abs(beam1_normed[:,:,0]))
-    #off_beamplot.imshow(numpy.abs(beam2_normed[:,:,0]))
-    #diff_beamplot.imshow(numpy.abs(beam1_normed[:,:,0]) - numpy.abs(beam2_normed[:,:,0]))
+        visibility_realisations[:, faulty_dipole] = visibility_extractor(baseline_selection, sky_cube, ideal_beam,
+                                                                         perturbed_beam)
 
-    #pyplot.show()
-    apparent_sky = sky_cube * beam1_normed * beam2_normed
+    print("Calculating the covariance matrix for a single baseline over the frequency range")
+    visibility_covariance = numpy.cov(visibility_realisations)
 
-    ##shift the zero point of the array to [0,0]
-    shifted_image = numpy.fft.ifftshift(apparent_sky, axes=(0, 1))
-    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2., axes=(0, 1))
-    normalised_visibilities = visibility_grid/delta_l[0]**2.
+    return visibility_covariance
 
-    model_visibilities = uv_list_to_baseline_measurements(baseline_table, normalised_visibilities, uv_coordinates)
+def visibility_extractor(baseline_table, sky_cube, antenna1_response, antenna2_response):
+    apparent_sky = sky_cube * antenna1_response*numpy.conj(antenna2_response)
+    shifted_image = numpy.fft.ifftshift(apparent_sky,  axes=(0, 1))
 
-    return model_visibilities
+    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2.,  axes=(0, 1))
+    measured_visibilities = uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_coordinates)
 
+    return measured_visibilities
 
 def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, weights=1, dipole_type='cross',
-                  theta_width=30 / 180 * numpy.pi):
+                  gaussian_width=30 / 180 * numpy.pi):
     dipole_sep = 1.1  # meters
     x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
                              -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dipole_sep
@@ -106,21 +109,22 @@ def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, wei
     if dipole_type == 'cross':
         dipole_jones_matrix = cross_dipole(theta)
     elif dipole_type == 'gaussian':
-        print(theta_width)
-        dipole_jones_matrix = gaussian_response(theta, theta_width)
+        # print(theta_width)
+        dipole_jones_matrix = gaussian_response(theta, gaussian_width)
     else:
         print("Wrong dipole_type: select cross or gaussian")
 
     ground_plane_field = electric_field_ground_plane(theta, frequency)
-
     array_factor = get_array_factor(x_offsets, y_offsets, z_offsets, weights, theta, phi, target_theta, target_phi,
                                     frequency)
 
-    tile_response = numpy.zeros(dipole_jones_matrix.shape, dtype=complex)
     tile_response = array_factor * ground_plane_field * dipole_jones_matrix
-
     tile_response[numpy.isnan(tile_response)] = 0
-    return tile_response
+
+    beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response, axis=(0, 1)))
+    normalised_response = tile_response / beam_normalisation
+
+    return normalised_response
 
 
 def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointing=0, frequency=150e6):
@@ -134,27 +138,72 @@ def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointin
     k_y0 = (2. * numpy.pi / wavelength) * numpy.sin(theta_pointing) * numpy.cos(phi_pointing)
     k_z0 = (2. * numpy.pi / wavelength) * numpy.cos(theta_pointing)
     array_factor_map = numpy.zeros(theta.shape, dtype=complex)
-    for i in range(number_dipoles):
-        array_factor_map += weights[i] * numpy.exp(
-            1.j * ((k_x - k_x0) * x[i] + (k_y - k_y0) * y[i] + (k_z - k_z0) * z[i]))
 
-    return array_factor_map / sum(weights)
+
+    for i in range(number_dipoles):
+        complex_exponent = 1.j * ((k_x - k_x0) * x[i] + (k_y - k_y0) * y[i] + (k_z - k_z0) * z[i])
+
+        # !This step takes a long time, look into optimisation through vectorisation/clever numpy usage
+        dipole_factor = weights[i]*numpy.exp(complex_exponent)
+
+        array_factor_map += dipole_factor
+
+    #filter all NaN
+    array_factor_map[numpy.isnan(array_factor_map)] = 0
+    array_factor_map = array_factor_map/numpy.sum(weights)
+
+    return array_factor_map
 
 
 def cross_dipole(theta):
     response = numpy.cos(theta)
     return response
 
+
+def gaussian_response(theta,target_theta = 0, theta_width = 30./180*numpy.pi):
+    response = 1./numpy.sqrt(2.*numpy.pi*theta_width**2.)*numpy.exp(-0.5*(theta-target_theta)**2./theta_width**2.)
+    return response
+
+
 def electric_field_ground_plane(theta, frequency=150e6 , height= 0.3):
     wavelength = light_speed/frequency
     ground_plane_electric_field = numpy.sin(2.*numpy.pi*height/wavelength*numpy.cos(theta))
     return ground_plane_electric_field
 
+
 def lm_to_theta_phi(ll, mm):
     theta = numpy.arcsin(numpy.sqrt(ll ** 2. + mm ** 2.))
     phi = numpy.arctan(mm / ll)
+
+    #phi is undefined for theta = 0, correct
+    index = numpy.where(theta == 0)
+    phi[index] = 0
     return theta, phi
 
+
+def interactive_frequency_plotter(data):
+    idx = 0
+    # figure axis setup
+    fig, ax = pyplot.subplots()
+    fig.subplots_adjust(bottom=0.15)
+
+    # display initial image
+    im_h = ax.imshow(data[:, :, idx], cmap='cubehelix', interpolation='nearest')
+    fig.colorbar(im_h)
+
+    # setup a slider axis and the Slider
+    ax_depth = pyplot.axes([0.23, 0.02, 0.56, 0.04])
+    slider_depth = Slider(ax_depth, 'depth', 0, data.shape[2] - 1, valinit=idx)
+
+
+
+    # update the figure with a change on the slider
+    def update_depth(val):
+        idx = int(round(slider_depth.val))
+        im_h.set_data(data[:, :, idx])
+
+    slider_depth.on_changed(update_depth)
+    pyplot.show()
 
 if __name__ == "__main__":
     main()
