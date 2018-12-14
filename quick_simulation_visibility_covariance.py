@@ -6,6 +6,7 @@ import numexpr
 from matplotlib import pyplot
 from matplotlib.widgets import Slider
 from scipy.constants import c as light_speed
+from scipy import interpolate
 
 import sys
 sys.path.append('../../../redundant_calibration/code/SCAR')
@@ -19,7 +20,9 @@ from SkyModel import uv_list_to_baseline_measurements
 
 """"
 TODO - curved sky
-- multi frequency optimisation
+- multi frequency optimisation (What's the best way to optimise this, i should definitely do the calculation per 
+frequency)
+- optimise calculating the beam. (there are three unique ways into destroy the beam, the other 16 dipoles are rotations
 
 """
 
@@ -65,41 +68,69 @@ def visibility_beam_covariance(telescope_param, frequency_range, sky_param, sky_
 
     print("Creating the idealised MWA beam\n")
     ideal_beam = mwa_tile_beam(tt, pp, frequency=ff)
-    interactive_frequency_plotter(ideal_beam)
 
     baseline_index = 0
     baseline_selection = numpy.array([baseline_table[baseline_index]])
     visibility_realisations = numpy.zeros((frequency_range.shape[0], 16), dtype=complex)
 
-    print("Iterating of 16 realisations of a perturbed MWA beam\n")
+    print("Iterating of 16 realisations of a perturbed MWA beam")
     for faulty_dipole in range(16):
         dipole_weights = numpy.zeros(16) + 1
         dipole_weights[faulty_dipole] = 0
         perturbed_beam = mwa_tile_beam(tt, pp, weights=dipole_weights, frequency=ff)
 
 
-        visibility_realisations[:, faulty_dipole] = visibility_extractor(baseline_selection, sky_cube, ideal_beam,
-                                                                         perturbed_beam)
+        print("Extracting visibilities per frequency channel\n")
+        for frequency_index in range(len(frequency_range)):
+            visibility_realisations[frequency_index, faulty_dipole] = visibility_extractor(
+                baseline_selection[:, :, frequency_index], sky_cube[:, :, frequency_index],
+                ideal_beam[:, :, frequency_index], perturbed_beam[:, :, frequency_index])
+
 
     print("Calculating the covariance matrix for a single baseline over the frequency range")
+
     visibility_covariance = numpy.cov(visibility_realisations)
 
-    return visibility_covariance
+    return visibility_realisations
+
 
 def visibility_extractor(baseline_table, sky_cube, antenna1_response, antenna2_response):
-    apparent_sky = sky_cube * antenna1_response*numpy.conj(antenna2_response)
-    shifted_image = numpy.fft.ifftshift(apparent_sky,  axes=(0, 1))
+    apparent_sky = sky_cube * antenna1_response * numpy.conj(antenna2_response)
+    padding_factor = 3
 
-    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2.,  axes=(0, 1))
+    padded_sky = numpy.pad(apparent_sky, padding_factor * len(apparent_sky), mode="constant")
+    shifted_image = numpy.fft.ifftshift(padded_sky, axes=(0, 1))
+    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2 * (2 * padding_factor + 1), axes=(0, 1))
+
     measured_visibilities = uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_coordinates)
 
     return measured_visibilities
 
+
+def uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_grid):
+
+    u_bin_centers = uv_grid[0]
+    v_bin_centers = uv_grid[1]
+
+    # now we have the bin edges we can start binning our baseline table
+    # Create an empty array to store our baseline measurements in
+    visibility_data = visibility_grid
+
+    real_component = interpolate.RegularGridInterpolator((u_bin_centers, v_bin_centers), numpy.real(visibility_data))
+    imag_component = interpolate.RegularGridInterpolator((u_bin_centers, v_bin_centers), numpy.imag(visibility_data))
+    visibilities = real_component(baseline_table[:, 2:4]) + \
+                   1j * imag_component(baseline_table[:, 2:4])
+
+    return visibilities
+
 def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, weights=1, dipole_type='cross',
                   gaussian_width=30 / 180 * numpy.pi):
+
+
     dipole_sep = 1.1  # meters
     x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
                              -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dipole_sep
+
     y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
                              -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dipole_sep
     z_offsets = numpy.zeros(x_offsets.shape)
@@ -128,8 +159,10 @@ def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, wei
 
 
 def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointing=0, frequency=150e6):
+
     wavelength = light_speed / frequency
     number_dipoles = len(x)
+
     k_x = (2. * numpy.pi / wavelength) * numpy.sin(theta) * numpy.sin(phi)
     k_y = (2. * numpy.pi / wavelength) * numpy.sin(theta) * numpy.cos(phi)
     k_z = (2. * numpy.pi / wavelength) * numpy.cos(theta)
@@ -138,7 +171,6 @@ def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointin
     k_y0 = (2. * numpy.pi / wavelength) * numpy.sin(theta_pointing) * numpy.cos(phi_pointing)
     k_z0 = (2. * numpy.pi / wavelength) * numpy.cos(theta_pointing)
     array_factor_map = numpy.zeros(theta.shape, dtype=complex)
-
 
     for i in range(number_dipoles):
         complex_exponent = 1.j * ((k_x - k_x0) * x[i] + (k_y - k_y0) * y[i] + (k_z - k_z0) * z[i])
