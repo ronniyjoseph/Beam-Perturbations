@@ -23,7 +23,12 @@ TODO - curved sky
 - multi frequency optimisation (What's the best way to optimise this, i should definitely do the calculation per 
 frequency)
 - optimise calculating the beam. (there are three unique ways into destroy the beam, the other 16 dipoles are rotations
-
+- Noise: when you split the noise over real and imaginary there is a square root of two. (ask bella)
+- Think about definition of the beam size, in terms of radian and in terms of l and m
+- Optimise beam perturbing code, generating the beam takes too long, think about the symmetries
+- Debug the equations
+- Check if numpy covariance  produces the same result as manual calculation
+- Check if effects goes away for a multi source sky
 """
 
 
@@ -48,8 +53,8 @@ def main():
     return
 
 
-def visibility_beam_covariance(telescope_param, frequency_range, sky_param, sky_seed = 0):
-    xyz_positions = xyz_position_creator(telescope_param)
+def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_seed = 0):
+    baseline_index = 0
     gain_table = antenna_gain_creator(xyz_positions, frequency_range)
     baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range)
 
@@ -68,9 +73,8 @@ def visibility_beam_covariance(telescope_param, frequency_range, sky_param, sky_
 
     print("Creating the idealised MWA beam\n")
     ideal_beam = mwa_tile_beam(tt, pp, frequency=ff)
-
-    baseline_index = 0
     baseline_selection = numpy.array([baseline_table[baseline_index]])
+
     visibility_realisations = numpy.zeros((frequency_range.shape[0], 16), dtype=complex)
 
     print("Iterating of 16 realisations of a perturbed MWA beam")
@@ -92,6 +96,43 @@ def visibility_beam_covariance(telescope_param, frequency_range, sky_param, sky_
     visibility_covariance = numpy.cov(visibility_realisations)
 
     return visibility_realisations
+
+
+def ideal_beam_perturber(ideal_beam, first_fourth_dipole, first_third_dipole, second_third_dipole, faulty_dipole):
+    if faulty_dipole == 0:
+        perturbed_beam = ideal_beam - first_fourth_dipole
+    elif faulty_dipole == 1:
+        perturbed_beam = ideal_beam - first_third_dipole
+    elif faulty_dipole == 2:
+        perturbed_beam = ideal_beam - numpy.flip(first_third_dipole, axis=0)
+    elif faulty_dipole == 3:
+        perturbed_beam = ideal_beam - numpy.flip(first_fourth_dipole, axis=0)
+    elif faulty_dipole == 4:
+        perturbed_beam = ideal_beam - numpy.flip(numpy.rot90(first_third_dipole, axes=(0, 1)), axis=1)
+    elif faulty_dipole == 5:
+        perturbed_beam = ideal_beam - second_third_dipole
+    elif faulty_dipole == 6:
+        perturbed_beam = ideal_beam - numpy.flip(second_third_dipole, axis=0)
+    elif faulty_dipole == 7:
+        perturbed_beam = ideal_beam - numpy.rot90(first_third_dipole, axes=(0, 1), k=3)
+    elif faulty_dipole == 8:
+        perturbed_beam = ideal_beam - numpy.rot90(first_third_dipole, axes=(0, 1))
+    elif faulty_dipole == 9:
+        perturbed_beam = ideal_beam - numpy.flip(second_third_dipole, axis=1)
+    elif faulty_dipole == 10:
+        perturbed_beam = numpy.flip(numpy.rot90(second_third_dipole, axes=(0, 1)), axis=0)
+    elif faulty_dipole == 11:
+        perturbed_beam = ideal_beam - numpy.flip(numpy.rot90(first_third_dipole, axes=(0, 1), k=3), axis=1)
+    elif faulty_dipole == 12:
+        perturbed_beam = ideal_beam - numpy.rot90(first_fourth_dipole, axes=(0, 1))
+    elif faulty_dipole == 13:
+        perturbed_beam = ideal_beam - numpy.flip(first_third_dipole, axis=1)
+    elif faulty_dipole == 14:
+        perturbed_beam = ideal_beam - numpy.rot90(first_third_dipole, k=2)
+    elif faulty_dipole == 15:
+        perturbed_beam = ideal_beam - numpy.rot90(first_fourth_dipole, k=2)
+
+    return perturbed_beam
 
 
 def visibility_extractor(baseline_table, sky_cube, antenna1_response, antenna2_response):
