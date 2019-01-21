@@ -1,7 +1,7 @@
 import numpy
 import powerbox
 import time
-import numexpr
+import os
 
 from matplotlib import pyplot
 from matplotlib.widgets import Slider
@@ -53,7 +53,7 @@ def main():
     return
 
 
-def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_seed = 0):
+def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_seed = 0, load = True):
     baseline_index = 0
     gain_table = antenna_gain_creator(xyz_positions, frequency_range)
     baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range)
@@ -71,20 +71,38 @@ def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_se
     ll, mm, ff = numpy.meshgrid(l_coordinates, m_coordinates, frequency_range)
     tt, pp, = lm_to_theta_phi(ll, mm)
 
-    print("Creating the idealised MWA beam\n")
-    ideal_beam = mwa_tile_beam(tt, pp, frequency=ff)
-    baseline_selection = numpy.array([baseline_table[baseline_index]])
+    if not load:
+        print("Creating the idealised MWA beam\n")
+        ideal_beam = mwa_tile_beam(tt, pp, frequency=ff)
+        if not os.path.exists("beam_maps"):
+            print("")
+            print("Creating beam map folder locally!")
+            os.makedirs("beam_maps")
+        numpy.save(f"beam_maps/ideal_beam_map.npy", ideal_beam)
+    if load:
+        print("Loading the idealised MWA beam\n")
+        ideal_beam = numpy.load(f"beam_maps/ideal_beam_map.npy")
 
+    baseline_selection = numpy.array([baseline_table[baseline_index]])
     visibility_realisations = numpy.zeros((frequency_range.shape[0], 16), dtype=complex)
 
-    print("Iterating of 16 realisations of a perturbed MWA beam")
+    print("Iterating over 16 realisations of a perturbed MWA beam")
     for faulty_dipole in range(16):
         dipole_weights = numpy.zeros(16) + 1
         dipole_weights[faulty_dipole] = 0
-        perturbed_beam = mwa_tile_beam(tt, pp, weights=dipole_weights, frequency=ff)
+        if load:
+            print(f"Loading perturbed tile beam for dipole {faulty_dipole}")
+            perturbed_beam = numpy.load(f"beam_maps/perturbed_dipole_{faulty_dipole}_map.npy")
+        elif not load:
+            print(f"Generating perturbed tile beam for dipole {faulty_dipole}")
+            perturbed_beam = mwa_tile_beam(tt, pp, weights=dipole_weights, frequency=ff)
+            if not os.path.exists("beam_maps"):
+                print("")
+                print("Creating beam map folder locally!")
+                os.makedirs("beam_maps")
+            numpy.save(f"beam_maps/perturbed_dipole_{faulty_dipole}_map.npy", perturbed_beam)
 
-
-        print("Extracting visibilities per frequency channel\n")
+        print(f"Extracting Visibilities")
         for frequency_index in range(len(frequency_range)):
             visibility_realisations[frequency_index, faulty_dipole] = visibility_extractor(
                 baseline_selection[:, :, frequency_index], sky_cube[:, :, frequency_index],
@@ -142,7 +160,6 @@ def visibility_extractor(baseline_table, sky_cube, antenna1_response, antenna2_r
     padded_sky = numpy.pad(apparent_sky, padding_factor * len(apparent_sky), mode="constant")
     shifted_image = numpy.fft.ifftshift(padded_sky, axes=(0, 1))
     visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2 * (2 * padding_factor + 1), axes=(0, 1))
-
     measured_visibilities = uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_coordinates)
 
     return measured_visibilities
