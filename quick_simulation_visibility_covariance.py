@@ -53,7 +53,7 @@ def main():
     return
 
 
-def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_seed = 0, load = True):
+def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_seed = 0, load = True, return_model = False):
     baseline_index = 0
     gain_table = antenna_gain_creator(xyz_positions, frequency_range)
     baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range)
@@ -85,6 +85,7 @@ def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_se
 
     baseline_selection = numpy.array([baseline_table[baseline_index]])
     visibility_realisations = numpy.zeros((frequency_range.shape[0], 16), dtype=complex)
+    model_visibility = numpy.zeros((frequency_range.shape[0]), dtype = complex)
 
     print("Iterating over 16 realisations of a perturbed MWA beam")
     for faulty_dipole in range(16):
@@ -108,12 +109,21 @@ def visibility_beam_covariance(xyz_positions, frequency_range, sky_param, sky_se
                 baseline_selection[:, :, frequency_index], sky_cube[:, :, frequency_index],
                 ideal_beam[:, :, frequency_index], perturbed_beam[:, :, frequency_index])
 
+            model_visibility[frequency_index] = visibility_extractor(
+                baseline_selection[:, :, frequency_index], sky_cube[:, :, frequency_index],
+                ideal_beam[:, :, frequency_index], ideal_beam[:, :, frequency_index])
+
 
     print("Calculating the covariance matrix for a single baseline over the frequency range")
 
     visibility_covariance = numpy.cov(visibility_realisations)
 
-    return visibility_realisations
+    if return_model:
+        data =  (visibility_realisations, model_visibility)
+    else:
+        data = visibility_realisations
+
+    return data
 
 
 def ideal_beam_perturber(ideal_beam, first_fourth_dipole, first_third_dipole, second_third_dipole, faulty_dipole):
@@ -181,6 +191,7 @@ def uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_grid):
 
     return visibilities
 
+
 def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, weights=1, dipole_type='cross',
                   gaussian_width=30 / 180 * numpy.pi):
 
@@ -207,7 +218,7 @@ def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, wei
     array_factor = get_array_factor(x_offsets, y_offsets, z_offsets, weights, theta, phi, target_theta, target_phi,
                                     frequency)
 
-    tile_response = array_factor * ground_plane_field * dipole_jones_matrix
+    tile_response = array_factor*ground_plane_field*dipole_jones_matrix
     tile_response[numpy.isnan(tile_response)] = 0
 
     beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response, axis=(0, 1)))
@@ -293,7 +304,6 @@ def interactive_frequency_plotter(data):
         im_h.set_data(data[:, :, idx])
 
     slider_depth.on_changed(update_depth)
-    pyplot.show()
 
 if __name__ == "__main__":
     main()
