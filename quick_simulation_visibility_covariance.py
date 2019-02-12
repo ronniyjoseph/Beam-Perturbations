@@ -245,7 +245,7 @@ def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointin
     array_factor_map = numpy.zeros(theta.shape, dtype=complex)
 
     for i in range(number_dipoles):
-        complex_exponent = 1.j * ((k_x - k_x0) * x[i] + (k_y - k_y0) * y[i] + (k_z - k_z0) * z[i])
+        complex_exponent = -1.j * ((k_x - k_x0) * x[i] + (k_y - k_y0) * y[i] + (k_z - k_z0) * z[i])
 
         # !This step takes a long time, look into optimisation through vectorisation/clever numpy usage
         dipole_factor = weights[i]*numpy.exp(complex_exponent)
