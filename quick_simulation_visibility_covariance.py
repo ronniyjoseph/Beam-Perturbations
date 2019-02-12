@@ -221,7 +221,10 @@ def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, wei
     tile_response = array_factor*ground_plane_field*dipole_jones_matrix
     tile_response[numpy.isnan(tile_response)] = 0
 
-    beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response, axis=(0, 1)))
+    if len(theta.shape) > 2:
+        beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response, axis=(0, 1)))
+    else:
+        beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response))
     normalised_response = tile_response / beam_normalisation*numpy.sum(weights)/16
 
     return normalised_response
