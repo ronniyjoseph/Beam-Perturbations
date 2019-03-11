@@ -5,7 +5,7 @@ class RadioTelescope:
 
         self.antenna_positions = AntennaPositions(load, path, shape)
         self.gains = 0
-        self.baseline_table = 0
+        self.baseline_table = BaselineTable(self.antenna_positions, self.gains)
 
         return
 
@@ -25,14 +25,15 @@ class AntennaPositions:
 
         return
 
-class BaselineTable
-    def __init__(self):
+class BaselineTable:
+    def __init__(self, ):
         self.first_antenna = 0
         self.second_antenna= 0
         self.u_coordinates = 0
         self.v_coordinates = 0
         self.w_coordinates = 0
-
+        #update all attributes
+        baseline_converter()
 
         return
 

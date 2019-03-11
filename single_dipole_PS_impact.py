@@ -27,9 +27,9 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 50) * 1e6
+    frequency_range = numpy.linspace(135, 165, 10) * 1e6
     faulty_dipole = 1
-    faulty_tile = 1
+    faulty_tile = 1068
     sky_param = ["random"]
     sky_seed = 0
     beam_type = "gaussian"
@@ -50,8 +50,6 @@ def main(verbose=True):
     #Create Sky
     ######################################################################
     source_population = SkyRealisation(sky_type="random")
-    if verbose:
-        print("Creating the sky\n")
     sky_cube, l_coordinates = source_population.create_sky_image(baseline_table = baseline_table)
     ll, mm, ff = numpy.meshgrid(l_coordinates, l_coordinates, frequency_range)
     ############################################################################
@@ -150,33 +148,24 @@ def main(verbose=True):
     selection = int(len(eta_coords[0])/2) + 1
 
 
-    #k_perpendicular = 2*numpy.pi*uv_bins/comoving_distance(frequency_range[int(len(frequency_range)/2)])
-    #k_parallell =
+    k_perpendicular = u_to_k_perpendicular(uv_bins, frequency_range)
+    k_parallel = eta_to_k_parallel(eta_coords[0, selection:], frequency_range)
 
-
-    figure = pyplot.figure(figsize=(26,8))
+    figure = pyplot.figure(figsize=(40,8))
     ideal_axes = figure.add_subplot(131)
     broken_axes = figure.add_subplot(132)
     difference_axes = figure.add_subplot(133)
 
-    print(eta_coords[0, selection:])
-    ideal_plot = ideal_axes.pcolor(uv_bins, eta_coords[0,selection:], numpy.log10(numpy.real(ideal_PS[:, selection:].T)))
-    broken_plot = broken_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.log10(numpy.real(broken_PS[:, selection:].T)))
+    ideal_plot = ideal_axes.pcolor(k_perpendicular, k_parallel, numpy.log10(numpy.real(ideal_PS[:, selection:].T)), cmap = 'Spectral_r')
+    broken_plot = broken_axes.pcolor(k_perpendicular, k_parallel, numpy.log10(numpy.real(broken_PS[:, selection:].T)), cmap = 'Spectral_r')
 
 
-    symlog_min = numpy.abs(numpy.nanmin(numpy.real(diff_PS[:, selection:])))/numpy.nanmin(numpy.real(diff_PS[:, selection:]))\
-                 #*\
-                #                                 numpy.log10(numpy.abs(numpy.min(numpy.real(diff_PS[:, selection:]))))
+    symlog_min, symlog_max, symlog_threshold= symlog_bounds(numpy.real(diff_PS[:,selection:]))
 
-    symlog_max = numpy.abs(numpy.nanmax(numpy.real(diff_PS[:, selection:])))/numpy.nanmax(numpy.real(diff_PS[:, selection:]))\
-                 #*\
-                 #                                  numpy.log10(numpy.abs(numpy.max(numpy.real(diff_PS[:, selection:]))))
-    print(symlog_min)
-    print(symlog_max)
-    diff_plot = difference_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(diff_PS[:, selection:].T),
-                                       norm=colors.SymLogNorm(linthresh=0.03, linscale=0.03,
-                                        vmin= symlog_min,
-                                        vmax= symlog_max))
+    diff_plot = difference_axes.pcolor(k_perpendicular, k_parallel, numpy.real(diff_PS[:, selection:].T),
+                                       norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=1,
+                                        vmin= -symlog_max,
+                                        vmax= symlog_max), cmap = 'coolwarm')
 
 
     ideal_axes.set_xscale("log")
@@ -188,7 +177,7 @@ def main(verbose=True):
     difference_axes.set_xscale("log")
     difference_axes.set_yscale("log")
 
-    ideal_axes.set_xlabel(r"$| u |$")
+    ideal_axes.set_xlabel(r"$| k |$")
     ideal_axes.set_ylabel(r"$\eta $")
 
     broken_axes.set_xlabel(r"$|u |$")
@@ -205,24 +194,64 @@ def main(verbose=True):
 
     return
 
+def symlog_bounds(data):
+    data_min = numpy.nanmin(data)
+    data_max = numpy.nanmax(data)
+
+    print(data_min, data_max)
+    if data_min == 0:
+        indices = numpy.where(data > 0)[0]
+        if len(indices) == 0:
+            lower_bound = -0.1
+        else:
+            lower_bound = numpy.nanmin(data[indices])
+    else:
+        lower_bound = numpy.abs(data_min)/data_min*numpy.abs(data_min)
+
+    if data_max == 0:
+        indices = numpy.where(data < 0)[0]
+        if len(indices) == 0:
+            upper_bound = 0.1
+        else:
+            upper_bound = numpy.nanmax(data[indices])
+    else:
+        upper_bound = numpy.abs(data_max)/data_max*numpy.abs(data_max)
+
+    ### Figure out what the lintresh is
+    threshold = 1e-3*min(numpy.abs(lower_bound), numpy.abs(upper_bound))
+    return lower_bound, upper_bound, threshold
+
+
+
+def u_to_k_perpendicular(uv_bins, frequency_range):
+
+    D_comoving = comoving_distance(frequency_range[int(len(frequency_range)/2)])
+    k_perpendicular = 2*numpy.pi*uv_bins/D_comoving
+
+    return k_perpendicular
+
+def eta_to_k_parallel(eta, frequency_range, H_0 = 70.4, rest_frequency_21cm = 1.420e9):
+    z = redshift(frequency_range[int(len(frequency_range)/2)])
+    print(f"z ={z}")
+    k_parallel = 2*numpy.pi*H_0*1000*rest_frequency_21cm*E(z)*eta/(c*(1 + z)**2.)
+
+    return k_parallel
+
 
 def E(z, omega_M = 0.27, omega_k = 0, omega_Lambda = 0.73):
-    function = numpy.sqrt(omega_M*(1+z)**2 + omega_k*(1+z)**2, omega_Lambda)
-    return function
+    return numpy.sqrt(omega_M*(1+z)**2 + omega_k*(1+z)**2 + omega_Lambda)
 
 def comoving_distance(frequency,  H_0 = 70.4):
     z = redshift(frequency)
-    z_range = numpy.linspace(0, z, 100)
+    z_range = numpy.linspace(0, z, 1000)
 
     y = E(z_range)
-    distance = c/H_0*numpy.trapz(y, z)
+    distance = c/(1000*H_0)*numpy.trapz(1/y, z_range)
+    print(distance)
     return distance
 
 
-
-
-def redshift(observed_frequency):
-    rest_frequency_21cm = 1.420e9
+def redshift(observed_frequency, rest_frequency_21cm = 1.420e9):
 
     z = (rest_frequency_21cm - observed_frequency)/observed_frequency
     return z
