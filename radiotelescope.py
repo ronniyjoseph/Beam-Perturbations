@@ -1,13 +1,13 @@
 import numpy
 
 class RadioTelescope:
-    def __init__(self, load = True, path, shape = 'linear'):
+    def __init__(self, load = True, path = None, shape = 'linear'):
 
-        self.antenna_positions = AntennaPositions(load)
-        self.baseline_table = 0
+        self.antenna_positions = AntennaPositions(load, path, shape)
         self.gains = 0
+        self.baseline_table = 0
 
-    return
+        return
 
 class AntennaPositions:
     def __init__(self, load = True, path = None, shape = 'linear'):
@@ -21,129 +21,72 @@ class AntennaPositions:
                 self.y_coordinates = antenna_data[:,2]
                 self.z_coordinates = numpy.zeros_like(antenna_data[:,0])
         else:
-            x= 0
+                raise ValueError("Custom shapes are note supported yet")
 
-    return
+        return
+
+class BaselineTable
+    def __init__(self):
+        self.first_antenna = 0
+        self.second_antenna= 0
+        self.u_coordinates = 0
+        self.v_coordinates = 0
+        self.w_coordinates = 0
 
 
-def xyz_position_creator(shape, verbose=True):
-    # type: (object) -> object
-    """
-	Generates an array lay-out defined by input parameters, returns
-	x,y,z coordinates of each antenna in the array
+        return
 
-	shape	: list of array parameters
-	shape[0]	: string value 'square', 'hex', 'doublehex', 'linear'
-
-		'square': produces a square array
-			shape[1]: 1/2 side of the square in meters
-			shape[2]: minimum baseline length
-			shape[3]: x position of square
-			shape[4]: y position of square
-
-		'hex': produces a hex array
-
-		'doublehex': produces a double hex array
-
-		'linear': produces a linear array
-			shape[1]: x-outeredges of the array
-			shape[2]: number of elements in the EW-linear array
-
-	"""
-    if shape[0] == "square" or shape[0] == 'doublesquare':
+    def baseline_converter(self, gain_table, frequency_channels, verbose=True):
         if verbose:
             print("")
-            print("Creating x- y- z-positions of a square array")
-        x_coordinates = numpy.arange(-shape[1], shape[1], shape[2])
-        y_coordinates = numpy.arange(-shape[1], shape[1], shape[2])
+            print("Converting xyz to uvw-coordinates")
 
-        block1 = numpy.zeros((len(x_coordinates) * len(y_coordinates), 4))
+        assert min(frequency_channels) > 1e6, "Frequency range is smaller 1 MHz, probably wrong units"
+
+        # calculate the wavelengths of the adjecent channels
+        wavelength_range = scipy.constants.c / frequency_channels
+        # Count the number of antenna
+        number_of_antenna = len(xy_positions[:, 0])
+        # Calculate the number of possible baselines
+        number_of_baselines = int(0.5 * number_of_antenna * (number_of_antenna - 1.))
+        # count the number of channels
+        n_channels = len(frequency_channels)
+        # Create an empty array for the baselines
+        # baselines x Antenna1, Antenna2, u, v, w, gain product, phase sum x channels
+        uv_positions = numpy.zeros((number_of_baselines, 7, n_channels))
+
+        if verbose:
+            print("")
+            print("Number of antenna =", number_of_antenna)
+            print("Total number of baselines =", number_of_baselines)
+
+        # arbitrary counter to keep track of the baseline table
         k = 0
-        for i in range(len(x_coordinates)):
-            for j in range(len(y_coordinates)):
-                block1[k, 0] = 1001 + k
-                block1[k, 1] = x_coordinates[i]
-                block1[k, 2] = y_coordinates[j]
-                block1[k, 3] = 0
+        for i in range(number_of_antenna):
+            for j in range(i + 1, number_of_antenna):
+                # save the antenna numbers in the uv table
+                uv_positions[k, 0, :] = xy_positions[i, 0]
+                uv_positions[k, 1, :] = xy_positions[j, 0]
+
+                # rescale and write uvw to multifrequency baseline table
+                uv_positions[k, 2, :] = (xy_positions[i, 1] - xy_positions[j, 1]) / \
+                                        wavelength_range
+                uv_positions[k, 3, :] = (xy_positions[i, 2] - xy_positions[j, 2]) / \
+                                        wavelength_range
+                uv_positions[k, 4, :] = (xy_positions[i, 3] - xy_positions[j, 3]) / \
+                                        wavelength_range
+
+                # Find the gains
+                amp_gain1 = gain_table[gain_table[:, 0, 0] == xy_positions[i, 0], 1, :][0]
+                amp_gain2 = gain_table[gain_table[:, 0, 0] == xy_positions[j, 0], 1, :][0]
+
+                phase_gain1 = gain_table[gain_table[:, 0, 0] == xy_positions[i, 0], 2, :][0]
+                phase_gain2 = gain_table[gain_table[:, 0, 0] == xy_positions[j, 0], 2, :][0]
+
+                # calculate the complex baseline gain
+                uv_positions[k, 5, :] = amp_gain1 * amp_gain2
+                uv_positions[k, 6, :] = -(phase_gain1 - phase_gain2)
+
                 k += 1
-        if shape[0] == 'square':
-            block1[:, 1] += shape[3]
-            block1[:, 2] += shape[4]
-            xyz_coordinates = block1.copy()
-        elif shape[0] == 'doublesquare':
-            block2 = block1.copy()
 
-            block2[:, 0] += 1000 + len(block1[:, 0])
-            block2[:, 1] += shape[3]
-            block2[:, 2] += shape[4]
-            xyz_coordinates = numpy.vstack((block1, block2))
-
-    elif shape[0] == 'hex' or shape[0] == 'doublehex':
-        if verbose:
-            print("")
-            print("Creating x- y- z-positions of a " + shape[0] + " array")
-
-        dx = shape[1]
-        dy = dx * numpy.sqrt(3.) / 2.
-
-        line1 = numpy.array([numpy.arange(4) * dx, numpy.zeros(4), numpy.zeros(4)]).transpose()
-
-        # define the second line
-        line2 = line1[0:3, :].copy()
-        line2[:, 0] += dx / 2.
-        line2[:, 1] += dy
-        # define the third line
-        line3 = line1[0:3].copy()
-        line3[:, 1] += 2 * dy
-        # define the fourth line
-        line4 = line2[0:2, :].copy()
-        line4[:, 1] += 2 * dy
-
-        block1 = numpy.vstack((line1[1:], line2, line3, line4))
-
-        block2 = numpy.vstack((line1[1:], line2, line3[1:], line4))
-        block2[:, 0] *= -1
-
-        block3 = numpy.vstack((line2, line3, line4))
-        block3[:, 1] *= -1
-
-        block4 = numpy.vstack((line2, line3[1:], line4))
-        block4[:, 0] *= -1
-        block4[:, 1] *= -1
-        hex_block = numpy.vstack((block1, block2, block3, block4))
-
-        if shape[0] == 'hex':
-            hex_block[:, 0] += shape[2]
-            hex_block[:, 1] += shape[3]
-            antenna_numbers = numpy.arange(len(hex_block[:, 0])) + 1001
-            xyz_coordinates = numpy.vstack((antenna_numbers, hex_block.T)).T
-        elif shape[0] == 'doublehex':
-            antenna_numbers = numpy.arange(len(hex_block[:, 0])) + 1001
-            first_hex = numpy.vstack((antenna_numbers, hex_block.T)).T
-
-            second_hex = first_hex.copy()
-
-            first_hex[:, 1] += shape[2]
-            first_hex[:, 2] += shape[3]
-
-            second_hex[:, 0] += 1000 + len(first_hex[:, 0])
-            second_hex[:, 1] += shape[4]
-            second_hex[:, 2] += shape[5]
-            xyz_coordinates = numpy.vstack((first_hex, second_hex))
-
-    elif shape[0] == 'linear':
-        if verbose:
-            print("")
-            print("Creating x- y- z-positions of a " + str(shape[2]) + " element linear array")
-        xyz_coordinates = numpy.zeros((shape[2], 4))
-        xyz_coordinates[:, 0] = numpy.arange(shape[2]) + 1001
-        xyz_coordinates[:, 1] = numpy.linspace(-shape[1], shape[1], shape[2])
-    elif shape[0] == 'file':
-        xyz_coordinates = antenna_table_loader(shape[1])
-
-    return xyz_coordinates
-
-
-
-
-
+        return uv_positions

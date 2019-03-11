@@ -26,10 +26,10 @@ foreground of point sources.
 
 def main(verbose=True):
 
-    path = "/home/ronniyjoseph/Sync/PhD/Projects/hybrid_calibration/code/tile_beam_perturbations/hex_pos.txt"
+    path = "./hex_pos.txt"
     frequency_range = numpy.linspace(135, 165, 50) * 1e6
     faulty_dipole = 1
-    faulty_tile = 93
+    faulty_tile = 1
     sky_param = ["random"]
     sky_seed = 0
     beam_type = "gaussian"
@@ -40,7 +40,7 @@ def main(verbose=True):
 
     #Create Radio Telescope
     #####################################################################
-    xyz_positions = antenna_table_loader(path)
+    xyz_positions = antenna_table_loader(path)[:10]
     gain_table = antenna_gain_creator(xyz_positions, frequency_range)
     baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range, verbose=verbose)
     #####################################################################
@@ -162,7 +162,21 @@ def main(verbose=True):
     print(eta_coords[0, selection:])
     ideal_plot = ideal_axes.pcolor(uv_bins, eta_coords[0,selection:], numpy.log10(numpy.real(ideal_PS[:, selection:].T)))
     broken_plot = broken_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.log10(numpy.real(broken_PS[:, selection:].T)))
-    diff_plot = difference_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(diff_PS[:, selection:].T))
+
+
+    symlog_min = numpy.abs(numpy.nanmin(numpy.real(diff_PS[:, selection:])))/numpy.nanmin(numpy.real(diff_PS[:, selection:]))\
+                 #*\
+                #                                 numpy.log10(numpy.abs(numpy.min(numpy.real(diff_PS[:, selection:]))))
+
+    symlog_max = numpy.abs(numpy.nanmax(numpy.real(diff_PS[:, selection:])))/numpy.nanmax(numpy.real(diff_PS[:, selection:]))\
+                 #*\
+                 #                                  numpy.log10(numpy.abs(numpy.max(numpy.real(diff_PS[:, selection:]))))
+    print(symlog_min)
+    print(symlog_max)
+    diff_plot = difference_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(diff_PS[:, selection:].T),
+                                       norm=colors.SymLogNorm(linthresh=0.03, linscale=0.03,
+                                        vmin= symlog_min,
+                                        vmax= symlog_max))
 
 
     ideal_axes.set_xscale("log")
