@@ -163,13 +163,12 @@ def ideal_beam_perturber(ideal_beam, first_fourth_dipole, first_third_dipole, se
     return perturbed_beam
 
 
-def visibility_extractor(baseline_table, sky_cube, antenna1_response, antenna2_response):
+def visibility_extractor(baseline_table, sky_cube, antenna1_response, antenna2_response, padding_factor = 3):
     apparent_sky = sky_cube * antenna1_response * numpy.conj(antenna2_response)
-    padding_factor = 3
 
     padded_sky = numpy.pad(apparent_sky, padding_factor * len(apparent_sky), mode="constant")
     shifted_image = numpy.fft.ifftshift(padded_sky, axes=(0, 1))
-    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2 * (2 * padding_factor + 1), axes=(0, 1))
+    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2*(2 * padding_factor + 1), axes=(0, 1))
     measured_visibilities = uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_coordinates)
 
     return measured_visibilities
