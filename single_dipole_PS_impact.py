@@ -16,9 +16,9 @@ from RadioTelescope import antenna_table_loader
 from skymodel import SkyRealisation
 from quick_simulation_visibility_covariance import lm_to_theta_phi
 from quick_simulation_visibility_covariance import mwa_tile_beam
-from scipy.constants import c as light_speed
+from scipy.constants import c
 
-
+import time
 """
 We calculate the power spectrum for the MWA, when 1 dipole is offline in the array, in the presence of a stochastic 
 foreground of point sources.
@@ -27,9 +27,9 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 10) * 1e6
+    frequency_range = numpy.linspace(135, 165, 5) * 1e6
     faulty_dipole = 1
-    faulty_tile = 1068
+    faulty_tile = 81
     sky_param = ["random"]
     sky_seed = 0
     beam_type = "gaussian"
@@ -40,7 +40,7 @@ def main(verbose=True):
 
     #Create Radio Telescope
     #####################################################################
-    xyz_positions = antenna_table_loader(path)[:10]
+    xyz_positions = antenna_table_loader(path)
     gain_table = antenna_gain_creator(xyz_positions, frequency_range)
     baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range, verbose=verbose)
     #####################################################################
@@ -81,9 +81,13 @@ def main(verbose=True):
     broken_measured_visibilities= ideal_measured_visibilities.copy()
 
     ##### Select perfect baselines #####
-    perfect_baseline_indices = numpy.where((baseline_table[:, 0, 0] != faulty_tile) & (baseline_table[:, 1, 0] != faulty_tile))[0]
-    broken_baseline_indices = numpy.where((baseline_table[:, 0, 0] == faulty_tile) | (baseline_table[:, 1, 0] == faulty_tile))[0]
+    perfect_baseline_indices = numpy.where((baseline_table[:, 0, 0] != faulty_tile) &
+                                           (baseline_table[:, 1, 0] != faulty_tile))[0]
+    broken_baseline_indices = numpy.where((baseline_table[:, 0, 0] == faulty_tile) |
+                                          (baseline_table[:, 1, 0] == faulty_tile))[0]
+
     print(f"there are broken {len(broken_baseline_indices)} baselines")
+
     if verbose:
         print("Iterating over frequencies")
     for frequency_index in range(len(frequency_range)):
@@ -151,23 +155,33 @@ def main(verbose=True):
     k_perpendicular = u_to_k_perpendicular(uv_bins, frequency_range)
     k_parallel = eta_to_k_parallel(eta_coords[0, selection:], frequency_range)
 
+    fontsize = 15
     figure = pyplot.figure(figsize=(40,8))
     ideal_axes = figure.add_subplot(131)
     broken_axes = figure.add_subplot(132)
     difference_axes = figure.add_subplot(133)
 
-    ideal_plot = ideal_axes.pcolor(k_perpendicular, k_parallel, numpy.log10(numpy.real(ideal_PS[:, selection:].T)), cmap = 'Spectral_r')
-    broken_plot = broken_axes.pcolor(k_perpendicular, k_parallel, numpy.log10(numpy.real(broken_PS[:, selection:].T)), cmap = 'Spectral_r')
+    ideal_plot = ideal_axes.pcolor(uv_bins, k_parallel, numpy.real(ideal_PS[:, selection:].T),
+                                   cmap = 'Spectral_r',
+                                   norm = colors.LogNorm(vmin = numpy.nanmin(numpy.real(ideal_PS[:, selection:].T)),
+                                                         vmax = numpy.nanmax(numpy.real(ideal_PS[:, selection:].T))))
 
+
+
+    broken_plot = broken_axes.pcolor(uv_bins, k_parallel, numpy.real(broken_PS[:, selection:].T),
+                                     cmap = 'Spectral_r',
+                                     norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(broken_PS[:, selection:].T)),
+                                                         vmax=numpy.nanmax(numpy.real(broken_PS[:, selection:].T))))
 
     symlog_min, symlog_max, symlog_threshold= symlog_bounds(numpy.real(diff_PS[:,selection:]))
 
-    diff_plot = difference_axes.pcolor(k_perpendicular, k_parallel, numpy.real(diff_PS[:, selection:].T),
-                                       norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=1,
-                                        vmin= -symlog_max,
+    diff_plot = difference_axes.pcolor(uv_bins, k_parallel, numpy.real(diff_PS[:, selection:].T),
+                                       norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=numpy.log10(symlog_max - symlog_min)/7,
+                                        vmin= symlog_min,
                                         vmax= symlog_max), cmap = 'coolwarm')
 
 
+    print(uv_bins)
     ideal_axes.set_xscale("log")
     ideal_axes.set_yscale("log")
 
@@ -177,18 +191,23 @@ def main(verbose=True):
     difference_axes.set_xscale("log")
     difference_axes.set_yscale("log")
 
-    ideal_axes.set_xlabel(r"$| k |$")
-    ideal_axes.set_ylabel(r"$\eta $")
+    ideal_axes.set_xlabel(r"$ k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$", fontsize = fontsize)
+    ideal_axes.set_ylabel(r"$k_{\parallel} $", fontsize = fontsize)
 
-    broken_axes.set_xlabel(r"$|u |$")
-    broken_axes.set_ylabel(r"$ \eta $")
+    broken_axes.set_xlabel(r"$k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$", fontsize = fontsize)
 
-    difference_axes.set_xlabel(r"$| u |$")
-    difference_axes.set_ylabel(r"$ \eta$ ")
+    difference_axes.set_xlabel(r"$k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$", fontsize = fontsize)
+
+
+    #ideal_axes.set_xlim(10**-2.5, 10**-0.5)
+    #broken_axes.set_xlim(10**-2.5, 10**-0.5)
+    #difference_axes.set_xlim(10**-2.5, 10**-0.5)
+
 
     ideal_cax = colorbar(ideal_plot)
     broken_cax = colorbar(broken_plot)
     diff_cax = colorbar(diff_plot)
+    diff_cax.set_label(r"$[Jy^2]$", fontsize = fontsize)
 
     pyplot.show()
 
@@ -198,7 +217,6 @@ def symlog_bounds(data):
     data_min = numpy.nanmin(data)
     data_max = numpy.nanmax(data)
 
-    print(data_min, data_max)
     if data_min == 0:
         indices = numpy.where(data > 0)[0]
         if len(indices) == 0:
@@ -225,14 +243,13 @@ def symlog_bounds(data):
 
 def u_to_k_perpendicular(uv_bins, frequency_range):
 
-    D_comoving = comoving_distance(frequency_range[int(len(frequency_range)/2)])
-    k_perpendicular = 2*numpy.pi*uv_bins/D_comoving
+    distance_comoving = comoving_distance(frequency_range[int(len(frequency_range)/2)])
+    k_perpendicular = 2*numpy.pi*uv_bins/distance_comoving
 
     return k_perpendicular
 
 def eta_to_k_parallel(eta, frequency_range, H_0 = 70.4, rest_frequency_21cm = 1.420e9):
     z = redshift(frequency_range[int(len(frequency_range)/2)])
-    print(f"z ={z}")
     k_parallel = 2*numpy.pi*H_0*1000*rest_frequency_21cm*E(z)*eta/(c*(1 + z)**2.)
 
     return k_parallel
@@ -243,7 +260,7 @@ def E(z, omega_M = 0.27, omega_k = 0, omega_Lambda = 0.73):
 
 def comoving_distance(frequency,  H_0 = 70.4):
     z = redshift(frequency)
-    z_range = numpy.linspace(0, z, 1000)
+    z_range = numpy.linspace(0, z, 100)
 
     y = E(z_range)
     distance = c/(1000*H_0)*numpy.trapz(1/y, z_range)
@@ -385,4 +402,7 @@ def colorbar(mappable):
     return fig.colorbar(mappable, cax=cax)
 
 if __name__ == "__main__":
+    start = time.clock()
     main()
+    end = time.clock()
+    print(f"Time is {end-start}")
