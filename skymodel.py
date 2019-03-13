@@ -23,7 +23,7 @@ class SkyRealisation:
             raise ValueError(f"sky_type must be 'random' or 'point' NOT {sky_type}")
         return
 
-    def create_sky_image(self, baseline_table = None, radiotelescope = False, resolution = False, oversampling = 1):
+    def create_sky_image(self, frequency_channels, baseline_table = False, resolution = False, oversampling = 1):
 
         #####################################
         # Assume the sky is flat
@@ -36,8 +36,8 @@ class SkyRealisation:
 
         if resolution != None:
             #Find longest baseline to determine sky_image sampling, pick highest frequency for longest baseline
-            max_u = numpy.max(numpy.abs(baseline_table[:, 2, -1]))
-            max_v = numpy.max(numpy.abs(baseline_table[:, 3, -1]))
+            max_u = numpy.max(baseline_table.u(frequency=frequency_channels))
+            max_v = numpy.max(baseline_table.v(frequency=frequency_channels))
             max_b = max(max_u, max_v)
             #sky_resolutions
             min_l = 1./max_b
@@ -51,7 +51,7 @@ class SkyRealisation:
 
         if l_pixel_dimension % 2 == 0:
             l_pixel_dimension += 1
-        n_frequencies = baseline_table.shape[2]
+        n_frequencies = len(frequency_channels)
 
         #empty sky_image
         sky_image = numpy.zeros((l_pixel_dimension, l_pixel_dimension, n_frequencies))
