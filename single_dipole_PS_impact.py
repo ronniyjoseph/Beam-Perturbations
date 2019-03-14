@@ -10,7 +10,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os
 import sys
 sys.path.append('../../../redundant_calibration/code/SCAR')
-from radiotelescope import RadioTelescope
+from RadioTelescope import antenna_gain_creator
+from RadioTelescope import baseline_converter
+from RadioTelescope import antenna_table_loader
 from skymodel import SkyRealisation
 from quick_simulation_visibility_covariance import lm_to_theta_phi
 from quick_simulation_visibility_covariance import mwa_tile_beam
@@ -25,9 +27,9 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 3) * 1e6
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1
-    faulty_tile = 1068
+    faulty_tile = 81
     sky_param = ["random"]
     sky_seed = 0
     beam_type = "gaussian"
@@ -38,8 +40,9 @@ def main(verbose=True):
 
     #Create Radio Telescope
     #####################################################################
-    radio_telescope = RadioTelescope(load = True, path = path,frequency_channels= frequency_range)
-    baseline_table = radio_telescope.baseline_table
+    xyz_positions = antenna_table_loader(path)
+    gain_table = antenna_gain_creator(xyz_positions, frequency_range)
+    baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range, verbose=verbose)
     #####################################################################
 
     if verbose:
@@ -84,21 +87,23 @@ def main(verbose=True):
     broken_baseline_indices = numpy.where((baseline_table[:, 0, 0] == faulty_tile) |
                                           (baseline_table[:, 1, 0] == faulty_tile))[0]
 
+    print(f"there are broken {len(broken_baseline_indices)} baselines")
+
     if verbose:
         print("Iterating over frequencies")
     for frequency_index in range(len(frequency_range)):
         #Sample all baselines, and get the relevant uv_grid coordinates
-        ideal_measured_visibilities[..., frequency_index], full_uv_grid = visibility_extractor(
-            baseline_table[..., frequency_index], sky_cube[..., frequency_index], ideal_beam[..., frequency_index],
-            ideal_beam[..., frequency_index])
+        ideal_measured_visibilities[...,frequency_index], full_uv_grid = visibility_extractor(
+            baseline_table[...,frequency_index], sky_cube[...,frequency_index], ideal_beam[...,frequency_index],
+            ideal_beam[...,frequency_index])
 
         #Copy good baselines to broken table
         broken_measured_visibilities[perfect_baseline_indices, frequency_index] = ideal_measured_visibilities[
             perfect_baseline_indices, frequency_index]
 
         broken_measured_visibilities[broken_baseline_indices, frequency_index], partial_uv_grid = visibility_extractor(
-            baseline_table[broken_baseline_indices, :, frequency_index], sky_cube[..., frequency_index],
-            ideal_beam[...,frequency_index], broken_beam[..., frequency_index])
+            baseline_table[broken_baseline_indices, :, frequency_index], sky_cube[...,frequency_index],
+            ideal_beam[...,frequency_index], broken_beam[...,frequency_index])
     ############################################################################################
 
     ###Get Power Spectrum
@@ -130,7 +135,6 @@ def main(verbose=True):
                                                                         baseline_table[:, 2, frequency_index],
                                                                         regridded_u_coordinates)
 
-        broken_regridded_vis[..., frequency_index] *= 1
 
     #visibilities have now been re-gridded
     ideal_shifted = numpy.fft.ifftshift(ideal_regridded_vis, axes=2)
@@ -171,7 +175,7 @@ def main(verbose=True):
                                      norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(broken_PS[:, selection:].T)),
                                                          vmax=numpy.nanmax(numpy.real(broken_PS[:, selection:].T))))
 
-    symlog_min, symlog_max, symlog_threshold = symlog_bounds(numpy.real(diff_PS[:,selection:]))
+    symlog_min, symlog_max, symlog_threshold= symlog_bounds(numpy.real(diff_PS[:,selection:]))
 
     diff_plot = difference_axes.pcolor(uv_bins, k_parallel, numpy.real(diff_PS[:, selection:].T),
                                        norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=numpy.log10(symlog_max - symlog_min)/7,
