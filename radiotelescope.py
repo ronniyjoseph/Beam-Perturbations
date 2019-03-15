@@ -6,6 +6,8 @@ from scipy.constants import c
 
 class RadioTelescope:
     def __init__(self, load=True, path=None, shape='linear', frequency_channels=None, verbose=False):
+        if verbose:
+            print("Creating the radio telescope")
         self.antenna_positions = AntennaPositions(load, path, shape)
         self.baseline_table = BaselineTable(self.antenna_positions, frequency_channels, verbose)
         return
@@ -18,10 +20,13 @@ class AntennaPositions:
                 raise ValueError("Specificy the antenna position path if loading position data")
             else:
                 antenna_data = numpy.loadtxt(path)
+
+                antenna_data = antenna_data[numpy.argsort(antenna_data[:, 0])]
+
                 self.antenna_ids = antenna_data[:, 0]
                 self.x_coordinates = antenna_data[:, 1]
                 self.y_coordinates = antenna_data[:, 2]
-                self.z_coordinates = numpy.zeros_like(antenna_data[:, 0])
+                self.z_coordinates = antenna_data[:, 3]
         else:
             raise ValueError("Custom shapes are note supported yet")
         return
@@ -32,8 +37,8 @@ class AntennaPositions:
 
 class BaselineTable:
     def __init__(self, position_table, frequency_channels=None, verbose=False):
-        self.first_antenna = None
-        self.second_antenna = None
+        self.antenna_id1 = None
+        self.antenna_id2 = None
         self.u_coordinates = None
         self.v_coordinates = None
         self.w_coordinates = None
@@ -101,8 +106,8 @@ class BaselineTable:
 
                 k += 1
 
-        self.first_antenna = antenna_1
-        self.second_antenna = antenna_2
+        self.antenna_id1 = antenna_1
+        self.antenna_id2 = antenna_2
 
         self.u_coordinates = u_coordinates
         self.v_coordinates = v_coordinates

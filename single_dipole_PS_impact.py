@@ -27,11 +27,12 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 5) * 1e6
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
     sky_seed = 0
+    calibration = True
     beam_type = "gaussian"
     load = False
 
@@ -90,7 +91,7 @@ def main(verbose=True):
     print(f"there are broken {len(broken_baseline_indices)} baselines")
 
     if verbose:
-        print("Iterating over frequencies")
+        print(" Generating Visbilities for each frequencies")
     for frequency_index in range(len(frequency_range)):
         #Sample all baselines, and get the relevant uv_grid coordinates
         ideal_measured_visibilities[...,frequency_index], full_uv_grid = visibility_extractor(
@@ -108,7 +109,8 @@ def main(verbose=True):
 
     ###Get Power Spectrum
     ############################################################################################
-
+    if verbose:
+        print("Gridding data for Power Spectrum Estimation")
     #Create empty_uvf_cubes:
     re_gridding_resolution = 0.5 #lambda
     n_regridded_cells = int(numpy.ceil(numpy.max(full_uv_grid[0]) - numpy.min(full_uv_grid[0])/re_gridding_resolution))
@@ -129,14 +131,19 @@ def main(verbose=True):
                                                                         baseline_table[:, 2, frequency_index],
                                                                         regridded_u_coordinates)
 
-        broken_regridded_vis[...,frequency_index], broken_weights[...,frequency_index] = regrid_visibilities(
+        broken_regridded_vis[..., frequency_index], broken_weights[..., frequency_index] = regrid_visibilities(
             broken_measured_visibilities[:, frequency_index],
                                                                         baseline_table[:, 2, frequency_index],
                                                                         baseline_table[:, 2, frequency_index],
                                                                         regridded_u_coordinates)
 
+        if calibration:
+            broken_regridded_vis[..., frequency_index] *= calibration_correction(faulty_dipole,
+                                                                                 frequency_range[frequency_index])
 
     #visibilities have now been re-gridded
+    if verbose:
+        print("Taking Fourier Transform over frequency and averaging")
     ideal_shifted = numpy.fft.ifftshift(ideal_regridded_vis, axes=2)
     broken_shifted = numpy.fft.ifftshift(broken_regridded_vis, axes=2)
 
@@ -156,7 +163,8 @@ def main(verbose=True):
 
     k_perpendicular = u_to_k_perpendicular(uv_bins, frequency_range)
     k_parallel = eta_to_k_parallel(eta_coords[0, selection:], frequency_range)
-
+    if verbose:
+        print("Plotting")
     fontsize = 15
     figure = pyplot.figure(figsize=(40,8))
     ideal_axes = figure.add_subplot(131)
@@ -195,7 +203,7 @@ def main(verbose=True):
     x_labeling = r"$ k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$"
     y_labeling = r"$k_{\parallel} $"
 
-    x_labeling = r"$ |\mathbf{u} |$"
+    x_labeling = r"$ |u |$"
     y_labeling = r"$ \eta $"
 
     ideal_axes.set_xlabel(x_labeling, fontsize = fontsize)
@@ -205,7 +213,7 @@ def main(verbose=True):
 
     difference_axes.set_xlabel(x_labeling, fontsize = fontsize)
 
-
+    figure.suptitle(f"Tile {faulty_tile}")
     #ideal_axes.set_xlim(10**-2.5, 10**-0.5)
     #broken_axes.set_xlim(10**-2.5, 10**-0.5)
     #difference_axes.set_xlim(10**-2.5, 10**-0.5)
@@ -364,6 +372,21 @@ def broken_gaussian_beam(faulty_dipole, ideal_beam, source_l, source_m, nu, diam
 
     return broken_beam
 
+def calibration_correction(faulty_dipole, nu, dx = 1.1):
+    wavelength = c / nu
+    x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
+                             -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dx
+
+    y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
+                             -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dx
+
+    correction = -16/15*wavelength**2./(4*numpy.pi**2*x_offsets[faulty_dipole]*y_offsets[faulty_dipole])*\
+                 (numpy.exp(2*numpy.pi*1j*(x_offsets[faulty_dipole] + y_offsets[faulty_dipole]) / wavelength) -
+                  numpy.exp(-2*numpy.pi*1j*(-x_offsets[faulty_dipole] + y_offsets[faulty_dipole])/wavelength) -
+                  numpy.exp(-2*numpy.pi*1j*(x_offsets[faulty_dipole] - y_offsets[faulty_dipole])/wavelength) +
+                  numpy.exp(2*numpy.pi*1j*(x_offsets[faulty_dipole] + y_offsets[faulty_dipole])/wavelength))
+
+    return correction
 
 def ideal_mwa_beam_loader(theta, phi, frequency, load=True, verbose = False):
     if not load:
@@ -401,12 +424,7 @@ def broken_mwa_beam_loader(theta, phi, frequency, faulty_dipole, load=True):
     return perturbed_beam
 
 
-def colorbar(mappable):
-    ax = mappable.axes
-    fig = ax.figure
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    return fig.colorbar(mappable, cax=cax)
+
 
 if __name__ == "__main__":
     start = time.clock()
