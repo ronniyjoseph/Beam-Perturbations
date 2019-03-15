@@ -27,7 +27,7 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 100) * 1e6
+    frequency_range = numpy.linspace(135, 165, 5) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
@@ -163,21 +163,21 @@ def main(verbose=True):
     broken_axes = figure.add_subplot(132)
     difference_axes = figure.add_subplot(133)
 
-    ideal_plot = ideal_axes.pcolor(uv_bins, k_parallel, numpy.real(ideal_PS[:, selection:].T),
+    ideal_plot = ideal_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(ideal_PS[:, selection:].T),
                                    cmap = 'Spectral_r',
                                    norm = colors.LogNorm(vmin = numpy.nanmin(numpy.real(ideal_PS[:, selection:].T)),
                                                          vmax = numpy.nanmax(numpy.real(ideal_PS[:, selection:].T))))
 
 
 
-    broken_plot = broken_axes.pcolor(uv_bins, k_parallel, numpy.real(broken_PS[:, selection:].T),
+    broken_plot = broken_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(broken_PS[:, selection:].T),
                                      cmap = 'Spectral_r',
                                      norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(broken_PS[:, selection:].T)),
                                                          vmax=numpy.nanmax(numpy.real(broken_PS[:, selection:].T))))
 
-    symlog_min, symlog_max, symlog_threshold= symlog_bounds(numpy.real(diff_PS[:,selection:]))
+    symlog_min, symlog_max, symlog_threshold= symlog_bounds(numpy.real(diff_PS[:, selection:]))
 
-    diff_plot = difference_axes.pcolor(uv_bins, k_parallel, numpy.real(diff_PS[:, selection:].T),
+    diff_plot = difference_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(diff_PS[:, selection:].T),
                                        norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=numpy.log10(symlog_max - symlog_min)/7,
                                         vmin= symlog_min,
                                         vmax= symlog_max), cmap = 'coolwarm')
@@ -192,12 +192,18 @@ def main(verbose=True):
     difference_axes.set_xscale("log")
     difference_axes.set_yscale("log")
 
-    ideal_axes.set_xlabel(r"$ k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$", fontsize = fontsize)
-    ideal_axes.set_ylabel(r"$k_{\parallel} $", fontsize = fontsize)
+    x_labeling = r"$ k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$"
+    y_labeling = r"$k_{\parallel} $"
 
-    broken_axes.set_xlabel(r"$k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$", fontsize = fontsize)
+    x_labeling = r"$ |\mathbf{u} |$"
+    y_labeling = r"$ \eta $"
 
-    difference_axes.set_xlabel(r"$k_{\perp} \, [\mathrm{h}\,\mathrm{Mpc}^{-1}]$", fontsize = fontsize)
+    ideal_axes.set_xlabel(x_labeling, fontsize = fontsize)
+    ideal_axes.set_ylabel(y_labeling, fontsize = fontsize)
+
+    broken_axes.set_xlabel(x_labeling, fontsize = fontsize)
+
+    difference_axes.set_xlabel(x_labeling, fontsize = fontsize)
 
 
     #ideal_axes.set_xlim(10**-2.5, 10**-0.5)
