@@ -6,25 +6,45 @@ sys.path.append('../../../redundant_calibration/code/SCAR')
 from RadioTelescope import antenna_gain_creator
 from RadioTelescope import baseline_converter
 from RadioTelescope import antenna_table_loader
+
 from single_dipole_PS_impact import visibility_extractor
-from single_dipole_PS_impact import vuv_list_to_baseline_measurements
+from single_dipole_PS_impact import uv_list_to_baseline_measurements
+from single_dipole_PS_impact import ideal_gaussian_beam
+from single_dipole_PS_impact import broken_gaussian_beam
+
+
+
+
+from radiotelescope import RadioTelescope
+from skymodel import SkyRealisation
 
 from matplotlib import pyplot
 
-path = "./hex_pos.txt"
-frequency_range = numpy.linspace(135, 165, 100) * 1e6
-faulty_dipole = 1
-faulty_tile = 81
-verbose = False
-frequency_index = 1
+from time import process_time
 
-ideal_old, broken_old = generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile, frequency_index)
-ideal_OO, broken_OO = generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile, frequency_index)
+def main():
+    path = "./hex_pos.txt"
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
+    faulty_dipole = 1
+    faulty_tile = 81
+    verbose = False
+    frequency_index = 1
 
-print(ideal_old - ideal_OO)
+    start_old = process_time()
+    #ideal_old, broken_old = generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile, frequency_index)
+    end_old = process_time()
 
+    start_OO = process_time()
+    ideal_OO, broken_OO = generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, frequency_index)
+    end_OO = process_time()
 
-def generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile, frequency_index):
+    print(end_OO - start_OO)
+    print(ideal_old - ideal_OO)
+
+    return
+
+def generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile, frequency_index, verbose= False,
+                              beam_type = 'gaussian'):
     xyz_positions = antenna_table_loader(path)
     gain_table = antenna_gain_creator(xyz_positions, frequency_range)
     baseline_table = baseline_converter(xyz_positions, gain_table, frequency_range, verbose=verbose)
@@ -69,14 +89,14 @@ def generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile,
 
     return ideal_measured_visibilities[..., frequency_index], broken_measured_visibilities[..., frequency_index]
 
-def generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, frequency_index):
+def generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, frequency_index, beam_type = 'gaussian'):
     telescope = radiotelescope.RadioTelescope(load=True, path=path)
-    baseline_object = telescope.baseline_table
+    baseline_table = telescope.baseline_table
 
     source_population = SkyRealisation(sky_type="random")
     sky_cube, l_coordinates = source_population.create_sky_image(frequency_channels=frequency_range[frequency_index],
-                                                             baseline_table=baseline_table)
-    ll, mm = numpy.meshgrid(l_coordinates, l_coordinates, frequency_range)
+                                                             radiotelescope=telescope)
+    ll, mm = numpy.meshgrid(l_coordinates, l_coordinates)
 
     if beam_type == "MWA":
         tt, pp, = lm_to_theta_phi(ll, mm)
@@ -89,19 +109,22 @@ def generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, 
     else:
         raise ValueError("The only valid option for the beam are 'MWA' or 'gaussian'")
 
-    ideal_measured_visibilities = numpy.zeros((baseline_table.shape[0]), dtype=complex)
+
+    ideal_measured_visibilities = numpy.zeros((baseline_table.number_of_baselines), dtype=complex)
     broken_measured_visibilities= ideal_measured_visibilities.copy()
 
     ##### Select perfect baselines #####
-    perfect_baseline_indices = numpy.where((baseline_table[:, 0, 0] != faulty_tile) &
-                                           (baseline_table[:, 1, 0] != faulty_tile))[0]
-    broken_baseline_indices = numpy.where((baseline_table[:, 0, 0] == faulty_tile) |
-                                          (baseline_table[:, 1, 0] == faulty_tile))[0]
+    perfect_baseline_indices = numpy.where((baseline_table.antenna_id1 != faulty_tile) &
+                                           (baseline_table.antenna_id2 != faulty_tile))[0]
+    broken_baseline_indices = numpy.where((baseline_table.antenna_id1 == faulty_tile) |
+                                          (baseline_table.antenna_id2 == faulty_tile))[0]
 
     # Sample all baselines, and get the relevant uv_grid coordinates
     ideal_measured_visibilities[:], full_uv_grid = visibility_extractor_OO(
         baseline_table, sky_cube, frequency_range[frequency_index], ideal_beam[..., frequency_index],
         ideal_beam[..., frequency_index])
+
+    print(sys.getsizeof(ideal_measured_visibilities)/1e9)
 
     # Copy good baselines to broken table
     broken_measured_visibilities[perfect_baseline_indices] = ideal_measured_visibilities[
@@ -142,3 +165,6 @@ def uv_list_to_baseline_measurements_OO(baseline_table, frequency, visibility_gr
                    1j*imag_component([baseline_table.u(frequency), baseline_table.v(frequency)])
 
     return visibilities
+
+if __name__ == "__main__":
+    main()
