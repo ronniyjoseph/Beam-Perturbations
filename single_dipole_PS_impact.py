@@ -18,6 +18,7 @@ from quick_simulation_visibility_covariance import lm_to_theta_phi
 from quick_simulation_visibility_covariance import mwa_tile_beam
 from scipy.constants import c
 
+from generaltools import colorbar
 import time
 """
 We calculate the power spectrum for the MWA, when 1 dipole is offline in the array, in the presence of a stochastic 
@@ -27,7 +28,7 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 100) * 1e6
+    frequency_range = numpy.linspace(135, 165, 10) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
@@ -141,6 +142,8 @@ def main(verbose=True):
             broken_regridded_vis[..., frequency_index] *= calibration_correction(faulty_dipole,
                                                                                  frequency_range[frequency_index])
 
+    return ideal_regridded_vis, ideal_weights, broken_regridded_vis, broken_weights
+    """
     #visibilities have now been re-gridded
     if verbose:
         print("Taking Fourier Transform over frequency and averaging")
@@ -183,12 +186,11 @@ def main(verbose=True):
                                      norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(broken_PS[:, selection:].T)),
                                                          vmax=numpy.nanmax(numpy.real(broken_PS[:, selection:].T))))
 
-    symlog_min, symlog_max, symlog_threshold= symlog_bounds(numpy.real(diff_PS[:, selection:]))
+    symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(diff_PS[:, selection:]))
 
     diff_plot = difference_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(diff_PS[:, selection:].T),
-                                       norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=numpy.log10(symlog_max - symlog_min)/7,
-                                        vmin= symlog_min,
-                                        vmax= symlog_max), cmap = 'coolwarm')
+                                       norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=symlog_scale,
+                                        vmin= symlog_min, vmax= symlog_max), cmap = 'coolwarm')
 
 
     ideal_axes.set_xscale("log")
@@ -227,6 +229,7 @@ def main(verbose=True):
     pyplot.show()
 
     return
+    """
 
 def symlog_bounds(data):
     data_min = numpy.nanmin(data)

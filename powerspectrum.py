@@ -9,10 +9,15 @@ fft, angular averaging, plotting
 
 class PowerSpectrumData:
     def __init__(self, visibility_data = None, u_coordinate = None, v_coordinate = None, frequency_coordinate = None):
-        self.data = visibility_data
-        self.u = u_coordinate
-        self.v = v_coordinate
-        self.f = frequency_coordinate
+        self.data_raw = visibility_data
+        self.u_raw = u_coordinate
+        self.v_raw = v_coordinate
+        self.f_raw = frequency_coordinate
+
+        self.data_regrid = None
+        self.u_regrid = None
+        self.v_regrid = None
+        self.f_regrid = None
         self.eta = None
         return
 
@@ -35,5 +40,31 @@ class PowerSpectrumData:
             self.f = numpy.vstack((current_f, numpy.array([new_frequency])))
         return
 
-    def regrid_data(self):
+    def regrid_data(self, keep_raw = True):
+        return
 
+
+def regrid_visibilities(measured_visibilities, baseline_u, baseline_v, u_grid):
+    u_shifts = numpy.diff(u_grid) / 2.
+
+    u_bin_edges = numpy.concatenate((numpy.array([u_grid[0] - u_shifts[0]]), u_grid[1:] - u_shifts,
+                                     numpy.array([u_grid[-1] + u_shifts[-1]])))
+
+    weights_regrid, u_bins, v__bins = numpy.histogram2d(baseline_u,
+                                                     baseline_v,
+                                                     bins=(u_bin_edges, u_bin_edges))
+
+    real_regrid, u_bins, v__bins = numpy.histogram2d(baseline_u,
+                                                     baseline_v,
+                                                     bins=(u_bin_edges, u_bin_edges),
+                                                     weights=
+                                                     numpy.real(measured_visibilities))
+
+    imag_regrid, u_bins, v__bins = numpy.histogram2d(baseline_u,
+                                                     baseline_v,
+                                                     bins=(u_bin_edges, u_bin_edges),
+                                                     weights=
+                                                     numpy.imag(measured_visibilities))
+
+    regridded_visibilities = real_regrid + 1j*imag_regrid
+    return regridded_visibilities, weights_regrid
