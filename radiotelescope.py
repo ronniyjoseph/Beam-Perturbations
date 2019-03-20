@@ -138,6 +138,69 @@ class BaselineTable:
 
         return subtable
 
+def beam_width(frequency, diameter=4, epsilon=1):
+    sigma = epsilon * c / (frequency * diameter)
+    width = numpy.sin(0.5 * sigma)
+    return width
+
+
+def ideal_gaussian_beam(source_l, source_m, nu, diameter=4, epsilon=1):
+    sigma = beam_width(nu, diameter, epsilon)
+
+    beam_attenuation = numpy.exp(-(source_l ** 2. + source_m ** 2.) / (2 * sigma ** 2))
+
+    return beam_attenuation
+
+def broken_gaussian_beam(faulty_dipole, ideal_beam, source_l, source_m, nu, diameter=4, epsilon=1, dx=1.1):
+    wavelength = c / nu
+    x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
+                             -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dx
+
+    y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
+                             -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dx
+
+    dipole_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter / 4.)
+    broken_beam = ideal_beam - 1 / 16 * dipole_beam * numpy.exp(
+        -2. * numpy.pi * 1j * (x_offsets[faulty_dipole] * numpy.abs(source_l) +
+                               y_offsets[faulty_dipole] * numpy.abs(source_m)) / wavelength)
+
+    return broken_beam
+
+def ideal_mwa_beam_loader(theta, phi, frequency, load=True, verbose = False):
+    if not load:
+        if verbose:
+            print("Creating the idealised MWA beam\n")
+        ideal_beam = mwa_tile_beam(theta, phi, frequency=frequency)
+        if not os.path.exists("beam_maps"):
+            print("")
+            print("Creating beam map folder locally!")
+            os.makedirs("beam_maps")
+        numpy.save(f"beam_maps/ideal_beam_map.npy", ideal_beam)
+    if load:
+        if verbose:
+            print("Loading the idealised MWA beam\n")
+        ideal_beam = numpy.load(f"beam_maps/ideal_beam_map.npy")
+
+    return ideal_beam
+
+
+def broken_mwa_beam_loader(theta, phi, frequency, faulty_dipole, load=True):
+    dipole_weights = numpy.zeros(16) + 1
+    dipole_weights[faulty_dipole] = 0
+    if load:
+        print(f"Loading perturbed tile beam for dipole {faulty_dipole}")
+        perturbed_beam = numpy.load(f"beam_maps/perturbed_dipole_{faulty_dipole}_map.npy")
+    elif not load:
+        # print(f"Generating perturbed tile beam for dipole {faulty_dipole}")
+        perturbed_beam = mwa_tile_beam(theta, phi, weights=dipole_weights, frequency=frequency)
+        if not os.path.exists("beam_maps"):
+            print("")
+            print("Creating beam map folder locally!")
+            os.makedirs("beam_maps")
+        numpy.save(f"beam_maps/perturbed_dipole_{faulty_dipole}_map.npy", perturbed_beam)
+
+    return perturbed_beam
+
 
 def rescale_baseline(baseline_coordinates, reference_frequency, frequency):
     if frequency is None:
@@ -161,3 +224,4 @@ def select_baselines(baseline_coordinates, baseline_selection_indices):
     else:
         selected_baseline_coordinates = baseline_coordinates[baseline_selection_indices, ...]
     return selected_baseline_coordinates
+
