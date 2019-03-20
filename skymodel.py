@@ -28,7 +28,7 @@ class SkyRealisation:
         return
 
     def create_sky_image(self, frequency_channels, baseline_table = None, radiotelescope = None,
-                        resolution = None, oversampling= 1):
+                        resolution = None, oversampling=1):
 
         #####################################
         # Assume the sky is flat
@@ -56,7 +56,10 @@ class SkyRealisation:
             #sky_resolutions
             min_l = 1./max_b
             delta_l = min_l/oversampling
-        elif resolution == None and resolution == None:
+        elif resolution is not None:
+            n_frequencies = 1
+            delta_l = resolution/oversampling
+        elif radiotelescope == None and resolution == None:
             raise ValueError("Input either a RadioTelescope object or specify a resolution")
 
         l_pixel_dimension = int(2./delta_l)

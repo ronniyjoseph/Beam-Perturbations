@@ -55,7 +55,7 @@ def generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile,
 
     source_population = SkyRealisation(sky_type="random")
     sky_cube, l_coordinates = source_population.create_sky_image(frequency_channels=frequency_range,
-                                                             baseline_table=baseline_table)
+                                                             baseline_table=baseline_table, oversampling  =1)
     ll, mm, ff = numpy.meshgrid(l_coordinates, l_coordinates, frequency_range)
 
     if beam_type == "MWA":
@@ -97,9 +97,16 @@ def generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, 
     telescope = radiotelescope.RadioTelescope(load=True, path=path)
     baseline_table = telescope.baseline_table
 
+    max_frequency = frequency_range[-1]
+    max_u = numpy.max(baseline_table.u(max_frequency))
+    max_v = numpy.max(baseline_table.v(max_frequency))
+    max_b = max(max_u, max_v)
+    # sky_resolutions
+    min_l = 1. / max_b
+
     source_population = SkyRealisation(sky_type="random")
-    sky_cube, l_coordinates = source_population.create_sky_image(frequency_channels=frequency_range[-1],
-                                                             radiotelescope=telescope)
+    sky_cube, l_coordinates = source_population.create_sky_image(frequency_channels=frequency_range[frequency_index],
+                                                             resolution=min_l, oversampling = 1)
     ll, mm = numpy.meshgrid(l_coordinates, l_coordinates)
 
     if beam_type == "MWA":
