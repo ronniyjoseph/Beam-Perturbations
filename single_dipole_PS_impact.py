@@ -250,9 +250,11 @@ def symlog_bounds(data):
     else:
         upper_bound = numpy.abs(data_max)/data_max*numpy.abs(data_max)
 
-    ### Figure out what the lintresh is
+    ### Figure out what the lintresh is (has to be linear)
     threshold = 1e-3*min(numpy.abs(lower_bound), numpy.abs(upper_bound))
-    return lower_bound, upper_bound, threshold
+    #### Figure out the linscale parameter (has to be in log)
+    scale = numpy.log10(upper_bound - lower_bound)/7
+    return lower_bound, upper_bound, threshold, scale
 
 
 
