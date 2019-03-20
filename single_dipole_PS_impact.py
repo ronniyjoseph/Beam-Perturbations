@@ -28,7 +28,7 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 10) * 1e6
+    frequency_range = numpy.linspace(135, 165, 5) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
@@ -113,6 +113,9 @@ def main(verbose=True):
     if verbose:
         print("Gridding data for Power Spectrum Estimation")
     #Create empty_uvf_cubes:
+    print(numpy.max(full_uv_grid[0]),numpy.min(full_uv_grid[0]) )
+    print(numpy.max(baseline_table[:,2:4,:]), numpy.min(baseline_table[:,2:4,:]))
+
     re_gridding_resolution = 0.5 #lambda
     n_regridded_cells = int(numpy.ceil(numpy.max(full_uv_grid[0]) - numpy.min(full_uv_grid[0])/re_gridding_resolution))
     regridded_u_coordinates = numpy.linspace(numpy.min(full_uv_grid[0]), numpy.max(full_uv_grid[0]), n_regridded_cells)
@@ -327,6 +330,7 @@ def visibility_extractor(baseline_table, sky_cube, antenna1_response, antenna2_r
     shifted_image = numpy.fft.ifftshift(padded_sky, axes=(0, 1))
     visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2* (2 * padding_factor + 1), axes=(0, 1))
     measured_visibilities = uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_coordinates)
+
     return measured_visibilities, uv_coordinates
 
 def uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_grid):

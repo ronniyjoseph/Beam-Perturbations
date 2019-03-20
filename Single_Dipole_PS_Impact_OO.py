@@ -22,7 +22,7 @@ from powerspectrum import regrid_visibilities
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 10) * 1e6
+    frequency_range = numpy.linspace(135, 165, 5) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
@@ -204,10 +204,8 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
     # Create an empty array to store our baseline measurements in
     visibility_data = visibility_grid
 
-    real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data),
-                                                         bounds_error=False, fill_value=0)
-    imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data),
-                                                         bounds_error=False, fill_value=0)
+    real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data))
+    imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data))
 
     visibilities = real_component(baseline_coordinates.T) + 1j*imag_component(baseline_coordinates.T)
 
