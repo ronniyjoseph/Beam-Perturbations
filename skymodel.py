@@ -50,7 +50,6 @@ class SkyRealisation:
             delta_l = min_l/oversampling
         elif radiotelescope is not None:
             n_frequencies = 1
-
             max_u = numpy.max(radiotelescope.baseline_table.u(frequency_channels))
             max_v = numpy.max(radiotelescope.baseline_table.v(frequency_channels))
             max_b = max(max_u, max_v)
@@ -66,7 +65,10 @@ class SkyRealisation:
             l_pixel_dimension += 1
 
         #empty sky_image
-        sky_image = numpy.zeros((l_pixel_dimension, l_pixel_dimension, n_frequencies))
+        if n_frequencies > 1:
+            sky_image = numpy.zeros((l_pixel_dimension, l_pixel_dimension, n_frequencies))
+        elif n_frequencies == 1:
+            sky_image = numpy.zeros((l_pixel_dimension, l_pixel_dimension))
 
         l_coordinates = numpy.linspace(-1, 1, l_pixel_dimension)
 
@@ -77,11 +79,14 @@ class SkyRealisation:
                                          l_coordinates[1:] - l_shifts,
                                          numpy.array([l_coordinates[-1] + l_shifts[-1]])))
 
-
-        for frequency_index in range(n_frequencies):
-            sky_image[:, :, frequency_index], l_bins, m_bins = numpy.histogram2d(source_l, source_m,
-                                                               bins=(l_bin_edges, l_bin_edges),
-                                                               weights=source_flux)
+        if n_frequencies > 1:
+            for frequency_index in range(n_frequencies):
+                sky_image[:, :, frequency_index], l_bins, m_bins = numpy.histogram2d(source_l, source_m,
+                                                                   bins=(l_bin_edges, l_bin_edges),
+                                                                   weights=source_flux)
+        elif n_frequencies == 1:
+            sky_image[:, :], l_bins, m_bins = numpy.histogram2d(source_l, source_m, bins=(l_bin_edges, l_bin_edges),
+                                                                weights=source_flux)
 
         #normalise sky image for pixel size Jy/beam
         normalised_sky_image = sky_image/(2/l_pixel_dimension)**2.

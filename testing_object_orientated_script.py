@@ -1,5 +1,7 @@
 import numpy
 import radiotelescope
+import powerbox
+from scipy import interpolate
 
 import sys
 sys.path.append('../../../redundant_calibration/code/SCAR')
@@ -31,14 +33,16 @@ def main():
     frequency_index = 1
 
     start_old = process_time()
-    #ideal_old, broken_old = generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile, frequency_index)
+    ideal_old, broken_old = generate_visibilities_old(path, frequency_range, faulty_dipole, faulty_tile, frequency_index)
     end_old = process_time()
 
     start_OO = process_time()
     ideal_OO, broken_OO = generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, frequency_index)
     end_OO = process_time()
 
-    print(end_OO - start_OO)
+    print("The old code takes",end_old - start_old)
+    print("The OO code takes", end_OO - start_OO)
+
     print(ideal_old - ideal_OO)
 
     return
@@ -94,7 +98,7 @@ def generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, 
     baseline_table = telescope.baseline_table
 
     source_population = SkyRealisation(sky_type="random")
-    sky_cube, l_coordinates = source_population.create_sky_image(frequency_channels=frequency_range[frequency_index],
+    sky_cube, l_coordinates = source_population.create_sky_image(frequency_channels=frequency_range[-1],
                                                              radiotelescope=telescope)
     ll, mm = numpy.meshgrid(l_coordinates, l_coordinates)
 
@@ -120,15 +124,12 @@ def generate_visibilities_OO(path, frequency_range, faulty_dipole, faulty_tile, 
                                           (baseline_table.antenna_id2 == faulty_tile))[0]
 
     # Sample all baselines, and get the relevant uv_grid coordinates
-    ideal_measured_visibilities[:], full_uv_grid = visibility_extractor_OO(
-        baseline_table, sky_cube, frequency_range[frequency_index], ideal_beam[..., frequency_index],
-        ideal_beam[..., frequency_index])
-
-    print(sys.getsizeof(ideal_measured_visibilities)/1e9)
+    ideal_measured_visibilities[:], full_uv_grid = visibility_extractor_OO(baseline_table, sky_cube,
+                                                                           frequency_range[frequency_index], ideal_beam,
+                                                                           ideal_beam)
 
     # Copy good baselines to broken table
-    broken_measured_visibilities[perfect_baseline_indices] = ideal_measured_visibilities[
-        perfect_baseline_indices]
+    broken_measured_visibilities[perfect_baseline_indices] = ideal_measured_visibilities[perfect_baseline_indices]
 
     broken_measured_visibilities[broken_baseline_indices], partial_uv_grid = visibility_extractor_OO(
         baseline_table.sub_table(broken_baseline_indices), sky_cube, frequency_range[frequency_index],
@@ -142,7 +143,9 @@ def visibility_extractor_OO(baseline_table, sky_cube, frequency, antenna1_respon
 
     padded_sky = numpy.pad(apparent_sky, padding_factor * apparent_sky.shape[0], mode="constant")
     shifted_image = numpy.fft.ifftshift(padded_sky, axes=(0, 1))
-    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2* (2 * padding_factor + 1), axes=(0, 1))
+    visibility_grid, uv_coordinates = powerbox.dft.fft(shifted_image, L=2*(2 * padding_factor + 1), axes=(0, 1))
+
+
     measured_visibilities = uv_list_to_baseline_measurements_OO(baseline_table, frequency, visibility_grid, uv_coordinates)
 
     return measured_visibilities, uv_coordinates
@@ -152,6 +155,7 @@ def uv_list_to_baseline_measurements_OO(baseline_table, frequency, visibility_gr
     u_bin_centers = uv_grid[0]
     v_bin_centers = uv_grid[1]
 
+    baseline_coordinates = numpy.array([baseline_table.u(frequency), baseline_table.v(frequency)])
     # now we have the bin edges we can start binning our baseline table
     # Create an empty array to store our baseline measurements in
     visibility_data = visibility_grid
@@ -161,8 +165,7 @@ def uv_list_to_baseline_measurements_OO(baseline_table, frequency, visibility_gr
     imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data),
                                                          bounds_error=False, fill_value= 0)
 
-    visibilities = real_component([baseline_table.u(frequency), baseline_table.v(frequency)]) + \
-                   1j*imag_component([baseline_table.u(frequency), baseline_table.v(frequency)])
+    visibilities = real_component(baseline_coordinates.T) + 1j*imag_component(baseline_coordinates.T)
 
     return visibilities
 
