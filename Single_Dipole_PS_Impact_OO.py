@@ -191,6 +191,7 @@ def get_observation_MP(source_population, baseline_table, min_l, faulty_dipole, 
 
 def get_observation_single_channel(source_population, baseline_table, min_l, faulty_dipole, faulty_tile, beam_type,
                                    frequency_range, frequency_index):
+    print(frequency_index)
     sky_image, l_coordinates = source_population.create_sky_image(
         frequency_channels=frequency_range[frequency_index], resolution=min_l, oversampling=1)
     ll, mm = numpy.meshgrid(l_coordinates, l_coordinates)
@@ -272,7 +273,9 @@ def regrid_visibilities(measured_visibilities, baseline_u, baseline_v, u_grid):
                                                      weights=numpy.imag(measured_visibilities))
 
     regridded_visibilities = real_regrid + 1j*imag_regrid
-    return regridded_visibilities, weights_regrid
+    normed_regridded_visibilities = numpy.nan_to_num(regridded_visibilities/weights_regrid)
+
+    return normed_regridded_visibilities, weights_regrid
 
 
 if __name__ == "__main__":
