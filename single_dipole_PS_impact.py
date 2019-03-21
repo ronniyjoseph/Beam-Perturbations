@@ -30,7 +30,7 @@ foreground of point sources.
 
 def main(verbose=True):
 
-    path = "./HexCoords_Luke.txt"
+    path = "./hex_pos.txt"
     frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1
     faulty_tile = 81

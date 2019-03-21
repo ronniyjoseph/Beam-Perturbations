@@ -28,10 +28,10 @@ def main(verbose=True):
 
     path = "./hex_pos.txt"
     frequency_range = numpy.linspace(135, 165, 100) * 1e6
-    faulty_dipole = 1
+    faulty_dipole = 2
     faulty_tile = 81
     sky_param = "random"
-    processes = 4
+    processes = 2
     calibration = True
     beam_type = "gaussian"
     plot_file_name = "Compare_new_code.pdf"
@@ -60,6 +60,11 @@ def main(verbose=True):
                                                                                    frequency_range, beam_type,
                                                                                    processes = processes)
     #############################################################################################################################
+
+    return
+
+def get_power_spectrum(frequency_range, ideal_measured_visibilities, broken_measured_visibilities, n_regridded_cells,
+                       verbose = False):
     if verbose:
         print("Gridding data for Power Spectrum Estimation")
 
@@ -79,8 +84,6 @@ def main(verbose=True):
         broken_regridded_cube[..., frequency_index], broken_regridded_weights[..., frequency_index] = regrid_visibilities(
             broken_measured_visibilities[:, frequency_index], baseline_table.u(frequency_range[frequency_index]),
             baseline_table.v(frequency_range[frequency_index]), regridded_uv)
-
-    #return regridded_uv, ideal_regridded_cube, ideal_regridded_weights, broken_regridded_cube, broken_regridded_weights
 
     # visibilities have now been re-gridded
     if verbose:
@@ -107,25 +110,29 @@ def main(verbose=True):
 
     if verbose:
         print("Making 2D PS Plots")
+    power_spectrum_plot(uv_bins, eta_coords[0, selection:], ideal_PS[:, selection:], broken_PS[:, selection:], diff_PS[:, selection:])
+    return
+
+def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS):
     fontsize = 15
-    figure = pyplot.figure(figsize=(30, 10 ))
+    figure = pyplot.figure(figsize=(30, 10))
     ideal_axes = figure.add_subplot(131)
     broken_axes = figure.add_subplot(132)
     difference_axes = figure.add_subplot(133)
 
-    ideal_plot = ideal_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(ideal_PS[:, selection:].T),
+    ideal_plot = ideal_axes.pcolor(uv_bins, eta_coords, numpy.real(ideal_PS.T),
                                    cmap='Spectral_r',
-                                   norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(ideal_PS[:, selection:].T)),
-                                                       vmax=numpy.nanmax(numpy.real(ideal_PS[:, selection:].T))))
+                                   norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(ideal_PS.T)),
+                                                       vmax=numpy.nanmax(numpy.real(ideal_PS.T))))
 
-    broken_plot = broken_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(broken_PS[:, selection:].T),
+    broken_plot = broken_axes.pcolor(uv_bins, eta_coords, numpy.real(broken_PS.T),
                                      cmap='Spectral_r',
-                                     norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(broken_PS[:, selection:].T)),
-                                                         vmax=numpy.nanmax(numpy.real(broken_PS[:, selection:].T))))
+                                     norm=colors.LogNorm(vmin=numpy.nanmin(numpy.real(broken_PS.T)),
+                                                         vmax=numpy.nanmax(numpy.real(broken_PS.T))))
 
-    symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(diff_PS[:, selection:]))
+    symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(diff_PS))
 
-    diff_plot = difference_axes.pcolor(uv_bins, eta_coords[0, selection:], numpy.real(diff_PS[:, selection:].T),
+    diff_plot = difference_axes.pcolor(uv_bins, eta_coords, numpy.real(diff_PS.T),
                                        norm=colors.SymLogNorm(linthresh=symlog_threshold, linscale=symlog_scale,
                                                               vmin=symlog_min, vmax=symlog_max), cmap='coolwarm')
 
@@ -165,11 +172,7 @@ def main(verbose=True):
     diff_cax = colorbar(diff_plot)
     diff_cax.set_label(r"$[Jy^2]$", fontsize=fontsize)
 
-    figure.savefig("../../Plots/Tile_Beam_Perturbation_Plots/"+plot_file_name)
-    return
-
-def get_power_spectrum():
-
+    figure.savefig("../../Plots/Tile_Beam_Perturbation_Plots/" + plot_file_name)
     return
 
 def get_observation_MP(source_population, baseline_table, min_l, faulty_dipole, faulty_tile, frequency_range, beam_type,
