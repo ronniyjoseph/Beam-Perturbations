@@ -11,6 +11,9 @@ import matplotlib.colors as colors
 from scipy.constants import c
 from scipy import interpolate
 
+from functools import partial
+import multiprocessing
+
 from generaltools import colorbar
 from generaltools import symlog_bounds
 
@@ -23,20 +26,19 @@ from powerspectrum import PowerSpectrumData
 from powerspectrum import regrid_visibilities
 def main(verbose=True):
 
-    path = "./HexCoords_Luke.txt"
+    path = "./hex_pos.txt"
     frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
-    sky_param = ["random"]
-    sky_seed = 0
+    sky_param = "random"
+    processes = 4
     calibration = True
     beam_type = "gaussian"
-    load = False
     plot_file_name = "Compare_new_code.pdf"
 
     telescope = RadioTelescope(load = True, path=path, verbose = verbose)
     baseline_table = telescope.baseline_table
-    source_population = SkyRealisation(sky_type="random", verbose = verbose)
+    source_population = SkyRealisation(sky_type=sky_param, verbose = verbose)
 
     #Determine maximum resolution
     max_frequency = frequency_range[-1]
@@ -51,55 +53,22 @@ def main(verbose=True):
     regridded_uv = numpy.linspace(-max_b, max_b, n_regridded_cells)
 
     ####################################################################################################################
-
-
-
-
-    ideal_measured_visibilities = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range)), dtype = complex)
-    broken_measured_visibilities= ideal_measured_visibilities.copy()
-
-    ideal_regridded_cube = numpy.zeros((n_regridded_cells, n_regridded_cells, len(frequency_range)), dtype = complex)
-    broken_regridded_cube= ideal_regridded_cube.copy()
-
-    ideal_regridded_weights = numpy.zeros((n_regridded_cells, n_regridded_cells, len(frequency_range)))
-    broken_regridded_weights = ideal_regridded_weights.copy()
-
-    for frequency_index in range(len(frequency_range)):
-        sky_image, l_coordinates = source_population.create_sky_image(
-            frequency_channels = frequency_range[frequency_index], resolution=min_l, oversampling=1)
-        ll, mm = numpy.meshgrid(l_coordinates, l_coordinates)
-
-        # Create Beam
-        #############################################################################
-        if beam_type == "MWA":
-            tt, pp, = lm_to_theta_phi(ll, mm)
-            ideal_beam = ideal_mwa_beam_loader(tt, pp, frequency_range[frequency_index], load)
-            broken_beam = broken_mwa_beam_loader(tt, pp, frequency_range[frequency_index], faulty_dipole, load)
-
-        elif beam_type == "gaussian":
-            ideal_beam = ideal_gaussian_beam(ll, mm, frequency_range[frequency_index])
-            broken_beam = broken_gaussian_beam(faulty_dipole, ideal_beam, ll, mm, frequency_range[frequency_index])
-        else:
-            raise ValueError("The only valid option for the beam are 'MWA' or 'gaussian'")
-
-        ##Determine the indices of the broken baselines and calulcate the visibility measurements
-        ##################################################################
-
-        broken_baseline_indices = numpy.where((baseline_table.antenna_id1 == faulty_tile) |
-                                              (baseline_table.antenna_id2 == faulty_tile))[0]
-
-        ideal_measured_visibilities[:, frequency_index] = visibility_extractor(baseline_table, sky_image, frequency_range[frequency_index],
-                                                           ideal_beam, ideal_beam)
-
-        broken_measured_visibilities[:, frequency_index] = ideal_measured_visibilities[:, frequency_index].copy()
-        broken_measured_visibilities[broken_baseline_indices, frequency_index] = visibility_extractor(
-            baseline_table.sub_table(broken_baseline_indices), sky_image, frequency_range[frequency_index],
-            ideal_beam, broken_beam)
+    if verbose:
+        print("Generating visibility measurements for each frequency")
+    ideal_measured_visibilities, broken_measured_visibilities = get_observation_MP(source_population, baseline_table,
+                                                                                   min_l, faulty_dipole, faulty_tile,
+                                                                                   frequency_range, beam_type,
+                                                                                   processes = processes)
     #############################################################################################################################
     if verbose:
         print("Gridding data for Power Spectrum Estimation")
+
     #Create empty_uvf_cubes:
-    print(numpy.max(regridded_uv),numpy.min(regridded_uv))
+    ideal_regridded_cube = numpy.zeros((n_regridded_cells,n_regridded_cells, len(frequency_range)), dtype = complex)
+    broken_regridded_cube= ideal_regridded_cube.copy()
+
+    ideal_regridded_weights = numpy.zeros((n_regridded_cells,n_regridded_cells, len(frequency_range)))
+    broken_regridded_weights= ideal_regridded_weights.copy()
 
     for frequency_index in range(len(frequency_range)):
 
@@ -199,10 +168,58 @@ def main(verbose=True):
     figure.savefig("../../Plots/Tile_Beam_Perturbation_Plots/"+plot_file_name)
     return
 
-
-def get_gridded_observations():
+def get_power_spectrum():
 
     return
+
+def get_observation_MP(source_population, baseline_table, min_l, faulty_dipole, faulty_tile, frequency_range, beam_type,
+                       processes = 4):
+    pool = multiprocessing.Pool(processes=processes)
+    iterator = partial(get_observation_single_channel, source_population, baseline_table, min_l, faulty_dipole,
+                       faulty_tile, beam_type, frequency_range )
+    ideal_observations_list, broken_observations_list = zip(*pool.map(iterator, range(len(frequency_range))))
+
+    ideal_observations = numpy.moveaxis(numpy.array(ideal_observations_list), 0, -1)
+    broken_observations = numpy.moveaxis(numpy.array(broken_observations_list), 0, -1)
+
+    return ideal_observations, broken_observations
+
+
+
+def get_observation_single_channel(source_population, baseline_table, min_l, faulty_dipole, faulty_tile, beam_type,
+                                   frequency_range, frequency_index):
+    sky_image, l_coordinates = source_population.create_sky_image(
+        frequency_channels=frequency_range[frequency_index], resolution=min_l, oversampling=1)
+    ll, mm = numpy.meshgrid(l_coordinates, l_coordinates)
+
+    # Create Beam
+    #############################################################################
+    if beam_type == "MWA":
+        tt, pp, = lm_to_theta_phi(ll, mm)
+        ideal_beam = ideal_mwa_beam_loader(tt, pp, frequency_range[frequency_index])
+        broken_beam = broken_mwa_beam_loader(tt, pp, frequency_range[frequency_index], faulty_dipole)
+
+    elif beam_type == "gaussian":
+        ideal_beam = ideal_gaussian_beam(ll, mm, frequency_range[frequency_index])
+        broken_beam = broken_gaussian_beam(faulty_dipole, ideal_beam, ll, mm, frequency_range[frequency_index])
+    else:
+        raise ValueError("The only valid option for the beam are 'MWA' or 'gaussian'")
+
+    ##Determine the indices of the broken baselines and calulcate the visibility measurements
+    ##################################################################
+
+    broken_baseline_indices = numpy.where((baseline_table.antenna_id1 == faulty_tile) |
+                                          (baseline_table.antenna_id2 == faulty_tile))[0]
+
+    ideal_measured_visibilities = visibility_extractor(baseline_table, sky_image, frequency_range[frequency_index],
+                                                                           ideal_beam, ideal_beam)
+
+    broken_measured_visibilities = ideal_measured_visibilities.copy()
+    broken_measured_visibilities[broken_baseline_indices] = visibility_extractor(
+        baseline_table.sub_table(broken_baseline_indices), sky_image, frequency_range[frequency_index],
+        ideal_beam, broken_beam)
+
+    return ideal_measured_visibilities, broken_measured_visibilities
 
 
 
