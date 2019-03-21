@@ -19,21 +19,37 @@ from matplotlib import pyplot
 from time import process_time
 
 def main():
-    ideal_cube1, ideal_weights1, broken_cube1, broken_weights1 = old_code()
-    ideal_cube2, ideal_weights2, broken_cube2, broken_weights2 = new_code()
+    coordinated_old, ideal_cube1, ideal_weights1, broken_cube1, broken_weights1 = old_code()
+    coordinates_new, ideal_cube2, ideal_weights2, broken_cube2, broken_weights2 = new_code()
 
-    print(ideal_cube1 - ideal_cube2)
-    print(ideal_weights1 - ideal_weights2)
-    print(broken_cube1 - broken_cube1)
-    print(broken_weights1 - broken_weights2)
+    print((ideal_cube1 - ideal_cube2).shape)
+    print((ideal_weights1 - ideal_weights2).shape)
+    print((broken_cube1 - broken_cube1).shape)
+    print((broken_weights1 - broken_weights2).shape)
 
-    pyplot.imshow(numpy.abs(ideal_cube1 - ideal_cube2))
-    pyplot.show()
-    pyplot.imshow(ideal_weights1 - ideal_weights2)
-    pyplot.show()
-    pyplot.imshow(broken_cube1 - broken_cube1)
-    pyplot.show()
-    pyplot.imshow(broken_weights1 - broken_weights2)
-    pyplot.show()
+    pyplot.plot(coordinated_old - coordinates_new)
+
+    for i in range(2):
+        pyplot.pcolor(coordinated_old, coordinates_new, numpy.abs(ideal_cube1 - ideal_cube2)[..., i])
+        pyplot.title("Visibilities")
+        pyplot.colorbar()
+        pyplot.show()
+
+        pyplot.pcolor(coordinated_old, coordinates_new, (ideal_weights1 - ideal_weights2)[..., i])
+        pyplot.title("Weights")
+        pyplot.colorbar()
+        pyplot.show()
+
+        pyplot.pcolor(coordinated_old, coordinates_new, numpy.abs(broken_cube1 - broken_cube2)[..., i])
+        pyplot.title("Visibilities")
+        pyplot.colorbar()
+        pyplot.show()
+
+        pyplot.pcolor(coordinated_old, coordinates_new, (broken_weights1 - broken_weights2)[..., i])
+        pyplot.title("Weights")
+        pyplot.colorbar()
+        pyplot.show()
+
+    return
 if __name__ == "__main__":
     main()

@@ -27,7 +27,7 @@ foreground of point sources.
 
 def main(verbose=True):
 
-    path = "./hex_pos.txt"
+    path = "./HexCoords_Luke.txt"
     frequency_range = numpy.linspace(135, 165, 2) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
@@ -117,8 +117,10 @@ def main(verbose=True):
     print(numpy.max(baseline_table[:,2:4,:]), numpy.min(baseline_table[:,2:4,:]))
 
     re_gridding_resolution = 0.5 #lambda
-    n_regridded_cells = int(numpy.ceil(numpy.max(full_uv_grid[0]) - numpy.min(full_uv_grid[0])/re_gridding_resolution))
+    n_regridded_cells = int(numpy.ceil((numpy.max(full_uv_grid[0]) - numpy.min(full_uv_grid[0]))/re_gridding_resolution))
     regridded_u_coordinates = numpy.linspace(numpy.min(full_uv_grid[0]), numpy.max(full_uv_grid[0]), n_regridded_cells)
+
+    print(numpy.min(regridded_u_coordinates), numpy.max(regridded_u_coordinates) )
 
     ideal_regridded_vis = numpy.zeros((n_regridded_cells, n_regridded_cells, len(frequency_range)), dtype=complex)
     broken_regridded_vis= ideal_regridded_vis.copy()
@@ -145,7 +147,7 @@ def main(verbose=True):
             broken_regridded_vis[..., frequency_index] *= calibration_correction(faulty_dipole,
                                                                                  frequency_range[frequency_index])
 
-    return ideal_regridded_vis, ideal_weights, broken_regridded_vis, broken_weights
+    return regridded_u_coordinates, ideal_regridded_vis, ideal_weights, broken_regridded_vis, broken_weights
 
     """
     #visibilities have now been re-gridded

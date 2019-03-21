@@ -21,8 +21,8 @@ from powerspectrum import PowerSpectrumData
 from powerspectrum import regrid_visibilities
 def main(verbose=True):
 
-    path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 5) * 1e6
+    path = "./HexCoords_Luke.txt"
+    frequency_range = numpy.linspace(135, 165, 2) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
@@ -104,7 +104,7 @@ def main(verbose=True):
             broken_measured_visibilities[:, frequency_index], baseline_table.u(frequency_range[frequency_index]),
             baseline_table.v(frequency_range[frequency_index]), regridded_uv)
 
-    return ideal_regridded_cube, ideal_regridded_weights, broken_regridded_cube, broken_regridded_weights
+    return regridded_uv, ideal_regridded_cube, ideal_regridded_weights, broken_regridded_cube, broken_regridded_weights
     """
     # visibilities have now been re-gridded
     if verbose:
