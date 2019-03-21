@@ -28,7 +28,7 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 5) * 1e6
+    frequency_range = numpy.linspace(135, 165, 2) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
@@ -146,6 +146,7 @@ def main(verbose=True):
                                                                                  frequency_range[frequency_index])
 
     return ideal_regridded_vis, ideal_weights, broken_regridded_vis, broken_weights
+
     """
     #visibilities have now been re-gridded
     if verbose:
@@ -342,10 +343,10 @@ def uv_list_to_baseline_measurements(baseline_table, visibility_grid, uv_grid):
     # Create an empty array to store our baseline measurements in
     visibility_data = visibility_grid
 
-    real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data),
-                                                         bounds_error=False, fill_value= 0)
-    imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data),
-                                                         bounds_error=False, fill_value= 0)
+    real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data))#,
+                                                         #bounds_error=False, fill_value= 0)
+    imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data))#,
+                                                         #bounds_error=False, fill_value= 0)
 
     visibilities = real_component(baseline_table[:, 2:4]) + 1j*imag_component(baseline_table[:, 2:4])
 

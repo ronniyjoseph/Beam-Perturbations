@@ -41,12 +41,15 @@ def main(verbose=True):
     max_v = numpy.max(numpy.abs(baseline_table.v(max_frequency)))
     max_b = max(max_u, max_v)
     # sky_resolutions
-    min_l = 1. / max_b
+    min_l = 1. / (2*max_b)
 
     re_gridding_resolution = 0.5  # lambda
     n_regridded_cells = int(numpy.ceil(2*max_b/re_gridding_resolution))
     regridded_uv = numpy.linspace(-max_b, max_b, n_regridded_cells)
 
+
+    ideal_measured_visibilities = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range)), dtype = complex)
+    broken_measured_visibilities= ideal_measured_visibilities.copy()
 
     ideal_regridded_cube = numpy.zeros((n_regridded_cells, n_regridded_cells, len(frequency_range)), dtype = complex)
     broken_regridded_cube= ideal_regridded_cube.copy()
@@ -78,20 +81,27 @@ def main(verbose=True):
         broken_baseline_indices = numpy.where((baseline_table.antenna_id1 == faulty_tile) |
                                               (baseline_table.antenna_id2 == faulty_tile))[0]
 
-        ideal_measured_visibilities = visibility_extractor(baseline_table, sky_image, frequency_range[frequency_index],
+        ideal_measured_visibilities[:, frequency_index] = visibility_extractor(baseline_table, sky_image, frequency_range[frequency_index],
                                                            ideal_beam, ideal_beam)
 
-        broken_measured_visibilities = ideal_measured_visibilities.copy()
-        broken_measured_visibilities[broken_baseline_indices] = visibility_extractor(
+        broken_measured_visibilities[:, frequency_index] = ideal_measured_visibilities[:, frequency_index].copy()
+        broken_measured_visibilities[broken_baseline_indices, frequency_index] = visibility_extractor(
             baseline_table.sub_table(broken_baseline_indices), sky_image, frequency_range[frequency_index],
             ideal_beam, broken_beam)
 
+    if verbose:
+        print("Gridding data for Power Spectrum Estimation")
+    #Create empty_uvf_cubes:
+    print(numpy.max(regridded_uv),numpy.min(regridded_uv))
+
+    for frequency_index in range(len(frequency_range)):
+
         ideal_regridded_cube[..., frequency_index], ideal_regridded_weights[..., frequency_index] = regrid_visibilities(
-            ideal_measured_visibilities, baseline_table.u(frequency_range[frequency_index]),
+            ideal_measured_visibilities[:, frequency_index], baseline_table.u(frequency_range[frequency_index]),
             baseline_table.v(frequency_range[frequency_index]), regridded_uv)
 
         broken_regridded_cube[..., frequency_index], broken_regridded_weights[..., frequency_index] = regrid_visibilities(
-            broken_measured_visibilities, baseline_table.u(frequency_range[frequency_index]),
+            broken_measured_visibilities[:, frequency_index], baseline_table.u(frequency_range[frequency_index]),
             baseline_table.v(frequency_range[frequency_index]), regridded_uv)
 
     return ideal_regridded_cube, ideal_regridded_weights, broken_regridded_cube, broken_regridded_weights
