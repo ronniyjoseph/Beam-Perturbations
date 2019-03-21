@@ -3,6 +3,8 @@ import powerbox
 import sys
 import time
 
+import matplotlib
+matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors as colors
 
@@ -22,7 +24,7 @@ from powerspectrum import regrid_visibilities
 def main(verbose=True):
 
     path = "./HexCoords_Luke.txt"
-    frequency_range = numpy.linspace(135, 165, 2) * 1e6
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
@@ -30,6 +32,7 @@ def main(verbose=True):
     calibration = True
     beam_type = "gaussian"
     load = False
+    plot_file_name = "Compare_new_code.pdf"
 
     telescope = RadioTelescope(load = True, path=path, verbose = verbose)
     baseline_table = telescope.baseline_table
@@ -46,6 +49,10 @@ def main(verbose=True):
     re_gridding_resolution = 0.5  # lambda
     n_regridded_cells = int(numpy.ceil(2*max_b/re_gridding_resolution))
     regridded_uv = numpy.linspace(-max_b, max_b, n_regridded_cells)
+
+    ####################################################################################################################
+
+
 
 
     ideal_measured_visibilities = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range)), dtype = complex)
@@ -88,7 +95,7 @@ def main(verbose=True):
         broken_measured_visibilities[broken_baseline_indices, frequency_index] = visibility_extractor(
             baseline_table.sub_table(broken_baseline_indices), sky_image, frequency_range[frequency_index],
             ideal_beam, broken_beam)
-
+    #############################################################################################################################
     if verbose:
         print("Gridding data for Power Spectrum Estimation")
     #Create empty_uvf_cubes:
@@ -104,8 +111,8 @@ def main(verbose=True):
             broken_measured_visibilities[:, frequency_index], baseline_table.u(frequency_range[frequency_index]),
             baseline_table.v(frequency_range[frequency_index]), regridded_uv)
 
-    return regridded_uv, ideal_regridded_cube, ideal_regridded_weights, broken_regridded_cube, broken_regridded_weights
-    """
+    #return regridded_uv, ideal_regridded_cube, ideal_regridded_weights, broken_regridded_cube, broken_regridded_weights
+
     # visibilities have now been re-gridded
     if verbose:
         print("Taking Fourier Transform over frequency and averaging")
@@ -132,7 +139,7 @@ def main(verbose=True):
     if verbose:
         print("Making 2D PS Plots")
     fontsize = 15
-    figure = pyplot.figure(figsize=(40, 8))
+    figure = pyplot.figure(figsize=(30, 10 ))
     ideal_axes = figure.add_subplot(131)
     broken_axes = figure.add_subplot(132)
     difference_axes = figure.add_subplot(133)
@@ -180,15 +187,25 @@ def main(verbose=True):
     # broken_axes.set_xlim(10**-2.5, 10**-0.5)
     # difference_axes.set_xlim(10**-2.5, 10**-0.5)
 
-    #ideal_cax = colorbar(ideal_plot)
-    #broken_cax = colorbar(broken_plot)
-    #diff_cax = colorbar(diff_plot)
-    #diff_cax.set_label(r"$[Jy^2]$", fontsize=fontsize)
+    ideal_axes.set_xlim(5, 200)
+    broken_axes.set_xlim(5, 200)
+    difference_axes.set_xlim(5, 200)
 
-    pyplot.show()
+    ideal_cax = colorbar(ideal_plot)
+    broken_cax = colorbar(broken_plot)
+    diff_cax = colorbar(diff_plot)
+    diff_cax.set_label(r"$[Jy^2]$", fontsize=fontsize)
+
+    figure.savefig("../../Plots/Tile_Beam_Perturbation_Plots/"+plot_file_name)
+    return
+
+
+def get_gridded_observations():
 
     return
-"""
+
+
+
 def visibility_extractor(baseline_table_object, sky_image, frequency, antenna1_response,
                             antenna2_response, padding_factor = 3):
 

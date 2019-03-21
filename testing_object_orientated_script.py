@@ -14,6 +14,7 @@ from Single_Dipole_PS_Impact_OO import main as new_code
 from radiotelescope import RadioTelescope
 from skymodel import SkyRealisation
 
+import matplotlib
 from matplotlib import pyplot
 
 from time import process_time
@@ -26,8 +27,9 @@ def main():
     print((ideal_weights1 - ideal_weights2).shape)
     print((broken_cube1 - broken_cube1).shape)
     print((broken_weights1 - broken_weights2).shape)
-
     pyplot.plot(coordinated_old - coordinates_new)
+    pyplot.show()
+    print("I am just not going to do what you want")
 
     for i in range(2):
         pyplot.pcolor(coordinated_old, coordinates_new, numpy.abs(ideal_cube1 - ideal_cube2)[..., i])

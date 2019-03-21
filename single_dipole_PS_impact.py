@@ -1,5 +1,8 @@
 import numpy
 import powerbox
+
+import matplotlib
+matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors as colors
 from scipy.constants import c
@@ -28,14 +31,15 @@ foreground of point sources.
 def main(verbose=True):
 
     path = "./HexCoords_Luke.txt"
-    frequency_range = numpy.linspace(135, 165, 2) * 1e6
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
     sky_param = ["random"]
     sky_seed = 0
-    calibration = True
+    calibration = False
     beam_type = "gaussian"
     load = False
+    plot_file_name = "Compare_old_code.pdf"
 
     if verbose:
         print("Creating Radio Telescope")
@@ -134,22 +138,21 @@ def main(verbose=True):
         ideal_regridded_vis[...,frequency_index], ideal_weights[...,frequency_index] = regrid_visibilities(
             ideal_measured_visibilities[:, frequency_index],
                                                                         baseline_table[:, 2, frequency_index],
-                                                                        baseline_table[:, 2, frequency_index],
+                                                                        baseline_table[:, 3, frequency_index],
                                                                         regridded_u_coordinates)
 
         broken_regridded_vis[..., frequency_index], broken_weights[..., frequency_index] = regrid_visibilities(
             broken_measured_visibilities[:, frequency_index],
                                                                         baseline_table[:, 2, frequency_index],
-                                                                        baseline_table[:, 2, frequency_index],
+                                                                        baseline_table[:, 3, frequency_index],
                                                                         regridded_u_coordinates)
 
         if calibration:
             broken_regridded_vis[..., frequency_index] *= calibration_correction(faulty_dipole,
                                                                                  frequency_range[frequency_index])
 
-    return regridded_u_coordinates, ideal_regridded_vis, ideal_weights, broken_regridded_vis, broken_weights
+    #return regridded_u_coordinates, ideal_regridded_vis, ideal_weights, broken_regridded_vis, broken_weights
 
-    """
     #visibilities have now been re-gridded
     if verbose:
         print("Taking Fourier Transform over frequency and averaging")
@@ -175,7 +178,7 @@ def main(verbose=True):
     if verbose:
         print("Plotting")
     fontsize = 15
-    figure = pyplot.figure(figsize=(40,8))
+    figure = pyplot.figure(figsize=(24,8))
     ideal_axes = figure.add_subplot(131)
     broken_axes = figure.add_subplot(132)
     difference_axes = figure.add_subplot(133)
@@ -226,16 +229,18 @@ def main(verbose=True):
     #broken_axes.set_xlim(10**-2.5, 10**-0.5)
     #difference_axes.set_xlim(10**-2.5, 10**-0.5)
 
+    ideal_axes.set_xlim(5, 200)
+    broken_axes.set_xlim(5, 200)
+    difference_axes.set_xlim(5, 200)
 
     ideal_cax = colorbar(ideal_plot)
     broken_cax = colorbar(broken_plot)
     diff_cax = colorbar(diff_plot)
     diff_cax.set_label(r"$[Jy^2]$", fontsize = fontsize)
-
-    pyplot.show()
+    figure.savefig("../../Plots/Tile_Beam_Perturbation_Plots/"+plot_file_name)
 
     return
-    """
+
 
 def symlog_bounds(data):
     data_min = numpy.nanmin(data)
