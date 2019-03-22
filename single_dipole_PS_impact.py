@@ -2,7 +2,7 @@ import numpy
 import powerbox
 
 import matplotlib
-matplotlib.use('agg')
+#matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors as colors
 from scipy.constants import c
@@ -30,7 +30,7 @@ foreground of point sources.
 
 def main(verbose=True):
 
-    path = "./hex_pos.txt"
+    path = "./HexCoords_Luke.txt"
     frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1
     faulty_tile = 81
@@ -397,8 +397,8 @@ def calibration_correction(faulty_dipole, nu, dx = 1.1):
     y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
                              -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dx
 
-    correction = -16/15*wavelength**2./(4*numpy.pi**2*x_offsets[faulty_dipole]*y_offsets[faulty_dipole])*\
-                 (numpy.exp(2*numpy.pi*1j*(x_offsets[faulty_dipole] + y_offsets[faulty_dipole]) / wavelength) -
+    correction = -15/16*wavelength**2./(4*numpy.pi**2*x_offsets[faulty_dipole]*y_offsets[faulty_dipole])*\
+                 (numpy.exp(-2*numpy.pi*1j*(x_offsets[faulty_dipole] + y_offsets[faulty_dipole]) / wavelength) -
                   numpy.exp(-2*numpy.pi*1j*(-x_offsets[faulty_dipole] + y_offsets[faulty_dipole])/wavelength) -
                   numpy.exp(-2*numpy.pi*1j*(x_offsets[faulty_dipole] - y_offsets[faulty_dipole])/wavelength) +
                   numpy.exp(2*numpy.pi*1j*(x_offsets[faulty_dipole] + y_offsets[faulty_dipole])/wavelength))

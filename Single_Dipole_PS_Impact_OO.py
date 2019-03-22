@@ -26,15 +26,15 @@ from powerspectrum import PowerSpectrumData
 from powerspectrum import regrid_visibilities
 def main(verbose=True):
 
-    path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 100) * 1e6
-    faulty_dipole = 2
+    path = "./HexCoords_Luke.txt.txt"
+    frequency_range = numpy.linspace(135, 165, 2) * 1e6
+    faulty_dipole = 6
     faulty_tile = 81
     sky_param = "random"
     processes = 2
-    calibration = True
+    calibrate = True
     beam_type = "gaussian"
-    plot_file_name = "Compare_new_code.pdf"
+    plot_file_name = "Compare_new_code_Long_Gain_Corrected_6.pdf"
 
     telescope = RadioTelescope(load = True, path=path, verbose = verbose)
     baseline_table = telescope.baseline_table
@@ -57,14 +57,17 @@ def main(verbose=True):
         print("Generating visibility measurements for each frequency")
     ideal_measured_visibilities, broken_measured_visibilities = get_observation_MP(source_population, baseline_table,
                                                                                    min_l, faulty_dipole, faulty_tile,
-                                                                                   frequency_range, beam_type,
+                                                                                   frequency_range, beam_type, calibrate,
                                                                                    processes = processes)
     #############################################################################################################################
 
+    get_power_spectrum(frequency_range, baseline_table, ideal_measured_visibilities, broken_measured_visibilities,
+                       n_regridded_cells, regridded_uv, faulty_tile, plot_file_name, verbose)
     return
 
-def get_power_spectrum(frequency_range, ideal_measured_visibilities, broken_measured_visibilities, n_regridded_cells,
-                       verbose = False):
+
+def get_power_spectrum(frequency_range, baseline_table, ideal_measured_visibilities, broken_measured_visibilities,
+                       n_regridded_cells, regridded_uv, faulty_tile, plot_file_name,  verbose = False):
     if verbose:
         print("Gridding data for Power Spectrum Estimation")
 
@@ -110,10 +113,11 @@ def get_power_spectrum(frequency_range, ideal_measured_visibilities, broken_meas
 
     if verbose:
         print("Making 2D PS Plots")
-    power_spectrum_plot(uv_bins, eta_coords[0, selection:], ideal_PS[:, selection:], broken_PS[:, selection:], diff_PS[:, selection:])
+    power_spectrum_plot(uv_bins, eta_coords[0, selection:], ideal_PS[:, selection:], broken_PS[:, selection:],
+                        diff_PS[:, selection:],plot_file_name, faulty_tile)
     return
 
-def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS):
+def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS, diff_PS, plot_file_name, faulty_tile = -1, ):
     fontsize = 15
     figure = pyplot.figure(figsize=(30, 10))
     ideal_axes = figure.add_subplot(131)
@@ -176,10 +180,10 @@ def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS):
     return
 
 def get_observation_MP(source_population, baseline_table, min_l, faulty_dipole, faulty_tile, frequency_range, beam_type,
-                       processes = 4):
+                       calibrate, processes = 4):
     pool = multiprocessing.Pool(processes=processes)
     iterator = partial(get_observation_single_channel, source_population, baseline_table, min_l, faulty_dipole,
-                       faulty_tile, beam_type, frequency_range )
+                       faulty_tile, beam_type, frequency_range, calibrate )
     ideal_observations_list, broken_observations_list = zip(*pool.map(iterator, range(len(frequency_range))))
 
     ideal_observations = numpy.moveaxis(numpy.array(ideal_observations_list), 0, -1)
@@ -190,8 +194,7 @@ def get_observation_MP(source_population, baseline_table, min_l, faulty_dipole, 
 
 
 def get_observation_single_channel(source_population, baseline_table, min_l, faulty_dipole, faulty_tile, beam_type,
-                                   frequency_range, frequency_index):
-    print(frequency_index)
+                                   frequency_range, calibrate, frequency_index, ):
     sky_image, l_coordinates = source_population.create_sky_image(
         frequency_channels=frequency_range[frequency_index], resolution=min_l, oversampling=1)
     ll, mm = numpy.meshgrid(l_coordinates, l_coordinates)
@@ -209,6 +212,11 @@ def get_observation_single_channel(source_population, baseline_table, min_l, fau
     else:
         raise ValueError("The only valid option for the beam are 'MWA' or 'gaussian'")
 
+    if calibrate:
+        correction = 16/15
+    else:
+        correction = 1
+
     ##Determine the indices of the broken baselines and calulcate the visibility measurements
     ##################################################################
 
@@ -221,7 +229,7 @@ def get_observation_single_channel(source_population, baseline_table, min_l, fau
     broken_measured_visibilities = ideal_measured_visibilities.copy()
     broken_measured_visibilities[broken_baseline_indices] = visibility_extractor(
         baseline_table.sub_table(broken_baseline_indices), sky_image, frequency_range[frequency_index],
-        ideal_beam, broken_beam)
+        ideal_beam, broken_beam)*correction
 
     return ideal_measured_visibilities, broken_measured_visibilities
 
@@ -276,6 +284,41 @@ def regrid_visibilities(measured_visibilities, baseline_u, baseline_v, u_grid):
     normed_regridded_visibilities = numpy.nan_to_num(regridded_visibilities/weights_regrid)
 
     return normed_regridded_visibilities, weights_regrid
+
+def regrid_visibilities_gaussian(measured_visibilities, baseline_table, u_grid, frequency):
+    u_shifts = numpy.diff(u_grid) / 2.
+
+    u_bin_edges = numpy.concatenate((numpy.array([u_grid[0] - u_shifts[0]]), u_grid[1:] - u_shifts,
+                                     numpy.array([u_grid[-1] + u_shifts[-1]])))
+
+
+    regridded_visibilities = numpy.zeros((len(u_grid), len(u_grid)), dtype = complex)
+    regridded_weights = numpy.zeros((len(u_grid), len(u_grid)))
+
+    grid_indices_u = numpy.digitize(baseline_table.u(frequency), bins=u_bin_edges)
+    grid_indices_v = numpy.digitize(baseline_table.v(frequency), bins=u_bin_edges)
+
+    kernel = gaussian_gridding_kernel(u_grid, u_grid, frequency)
+    kernel_threshold = 1e-3
+    kernel_indices = numpy.where(kernel < kernel_threshold)
+
+    for baseline_index in range(baseline_table.number_of_baselines):
+        #Find the index of this baseline in the new grid
+        index_u = grid_indices_u[baseline_index]
+        index_v = grid_indices_v[baseline_index]
+
+        #check whether the b
+
+    return
+
+def gaussian_gridding_kernel(u_coordinates, v_coordinates, nu, diameter=4, epsilon=1):
+    sigma = beam_width(nu, diameter, epsilon)
+
+    beam_attenuation = numpy.sqrt(2*numpy.pi*sigma**2)*\
+                       numpy.exp(-(u_coordinates ** 2. + v_coordinates ** 2.) (2 *numpy.pi**2*sigma ** 2))
+
+    return beam_attenuation
+
 
 
 if __name__ == "__main__":
