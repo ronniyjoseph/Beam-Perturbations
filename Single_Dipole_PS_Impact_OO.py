@@ -5,18 +5,11 @@ import time
 
 import matplotlib
 
-matplotlib.use('agg')
-from matplotlib import pyplot
-import matplotlib.colors as colors
-
 from scipy.constants import c
 from scipy import interpolate
 
 from functools import partial
 import multiprocessing
-
-from generaltools import colorbar
-from generaltools import symlog_bounds
 
 from skymodel import SkyRealisation
 from radiotelescope import RadioTelescope
@@ -27,16 +20,16 @@ from powerspectrum import get_power_spectrum
 
 
 def main(verbose=True):
-    path = "./HexCoords_Luke.txt"
-    frequency_range = numpy.linspace(135, 165, 2) * 1e6
+    path = "./hex_pos.txt"
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 6
     faulty_tile = 81
     sky_param = "random"
-    mode = "serial"
+    mode = "parallel"
     processes = 2
     calibrate = True
     beam_type = "gaussian"
-    plot_file_name = "Compare_new_code_Long_Gain_Corrected_6_Test.pdf"
+    plot_file_name = "Compare_new_code_Long_Gain_Corrected_6.pdf"
 
     telescope = RadioTelescope(load=True, path=path, verbose=verbose)
     source_population = SkyRealisation(sky_type=sky_param, verbose=verbose)

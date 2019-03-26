@@ -1,8 +1,13 @@
 import numpy
 import powerbox
 
+import matplotlib
+matplotlib.use('agg')
 from matplotlib import pyplot
+import matplotlib.colors as colors
 
+from generaltools import colorbar
+from generaltools import symlog_bounds
 """
 This file is going to contain all relevant power spectrum functions, i.e data gridding, (frequency tapering), frequency
 fft, angular averaging, plotting
