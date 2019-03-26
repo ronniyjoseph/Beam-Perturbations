@@ -20,16 +20,16 @@ from powerspectrum import get_power_spectrum
 
 
 def main(verbose=True):
-    path = "./hex_pos.txt"
+    path = "./HexCoords_Luke.txt"
     frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 6
-    faulty_tile = 81
+    faulty_tile = 10360000
     sky_param = "random"
-    mode = "parallel"
+    mode = "serial"
     processes = 2
     calibrate = True
     beam_type = "gaussian"
-    plot_file_name = "Compare_new_code_Long_Gain_Corrected_6.pdf"
+    plot_file_name = "Compare_new_code_Hex_Test_{mode}.pdf"
 
     telescope = RadioTelescope(load=True, path=path, verbose=verbose)
     source_population = SkyRealisation(sky_type=sky_param, verbose=verbose)
@@ -42,9 +42,15 @@ def main(verbose=True):
     ideal_measured_visibilities, broken_measured_visibilities = get_observations(source_population, telescope,
                                                                                  faulty_dipole, faulty_tile,
                                                                                  frequency_range, beam_type, calibrate,
-                                                                                 compute_mode= mode,
+                                                                                 compute_mode= 'parallel',
                                                                                  processes=processes, verbose=verbose)
 
+    #ideal_measured_visibilities1, broken_measured_visibilities1 = get_observations(source_population, telescope,
+    #                                                                             faulty_dipole, faulty_tile,
+    #                                                                             frequency_range, beam_type, calibrate,
+    #                                                                             compute_mode= "serial")
+
+   #print(ideal_measured_visibilities - ideal_measured_visibilities1)
     ####################################################################################################################
     get_power_spectrum(frequency_range, telescope, ideal_measured_visibilities, broken_measured_visibilities,
                        faulty_tile, plot_file_name, verbose)
@@ -54,6 +60,8 @@ def main(verbose=True):
 def get_observations(source_population, radio_telescope, faulty_dipole, faulty_tile, frequency_range, beam_type,
                      calibrate, compute_mode=False, processes=4, verbose=False):
     if compute_mode == "parallel":
+        if verbose:
+            print("Parallelised mode")
         baseline_table = radio_telescope.baseline_table
 
         # Determine maximum resolution
@@ -71,9 +79,17 @@ def get_observations(source_population, radio_telescope, faulty_dipole, faulty_t
 
         ideal_observations = numpy.moveaxis(numpy.array(ideal_observations_list), 0, -1)
         broken_observations = numpy.moveaxis(numpy.array(broken_observations_list), 0, -1)
+
     elif compute_mode == "serial":
-        get_observations_all_channels_serial(source_population, radio_telescope, faulty_dipole, faulty_tile, frequency_range,
-                                      beam_type, calibrate, verbose)
+        if verbose:
+            print("Serial mode")
+        ideal_observations, broken_observations = get_observations_all_channels_serial(source_population,
+                                                                                       radio_telescope, faulty_dipole,
+                                                                                       faulty_tile, frequency_range,
+                                                                                       beam_type, calibrate, verbose)
+    elif compute_mode == "high_memory":
+        if verbose:
+            print("High Memory mode")
 
     return ideal_observations, broken_observations
 
@@ -125,8 +141,8 @@ def get_observations_all_channels_serial(source_population, radio_telescope, fau
     for frequency_index in range(len(frequency_range)):
         # Sample all baselines, and get the relevant uv_grid coordinates
         ideal_measured_visibilities[..., frequency_index] = visibility_extractor(
-            baseline_table, sky_cube[..., frequency_index],frequency_range[frequency_index], ideal_beam[..., frequency_index],
-            ideal_beam[..., frequency_index])
+            baseline_table, sky_cube[..., frequency_index], frequency_range[frequency_index],
+            ideal_beam[..., frequency_index], ideal_beam[..., frequency_index])
 
         if calibrate:
             correction = 16 / 15
@@ -138,7 +154,7 @@ def get_observations_all_channels_serial(source_population, radio_telescope, fau
             perfect_baseline_indices, frequency_index]
 
         broken_measured_visibilities[broken_baseline_indices, frequency_index] = visibility_extractor(
-            baseline_table[broken_baseline_indices, :, frequency_index], sky_cube[..., frequency_index],
+            baseline_table.sub_table(broken_baseline_indices), sky_cube[..., frequency_index], frequency_range[frequency_index],
             ideal_beam[..., frequency_index], broken_beam[..., frequency_index]) * correction
 
     return ideal_measured_visibilities, broken_measured_visibilities
@@ -203,12 +219,12 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
     u_bin_centers = uv_grid[0]
     v_bin_centers = uv_grid[1]
 
-    print(numpy.min(u_bin_centers), numpy.max(u_bin_centers), numpy.min(v_bin_centers), numpy.max(v_bin_centers))
 
     baseline_coordinates = numpy.array([baseline_table_object.u(frequency), baseline_table_object.v(frequency)])
 
-    print(numpy.min(baseline_table_object.u(frequency)), numpy.max(baseline_table_object.u(frequency)),
-          numpy.min(baseline_table_object.v(frequency)), numpy.max(baseline_table_object.v(frequency)))
+    #if baseline_table_object.selection is None:
+        #print(numpy.min(baseline_table_object.u(frequency)), numpy.max(baseline_table_object.u(frequency)),
+          #numpy.min(baseline_table_object.v(frequency)), numpy.max(baseline_table_object.v(frequency)))
 
     # now we have the bin edges we can start binning our baseline table
     # Create an empty array to store our baseline measurements in
@@ -219,7 +235,6 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
 
     visibilities = real_component(baseline_coordinates.T) + 1j * imag_component(baseline_coordinates.T)
 
-    print(frequency.shape)
     return visibilities
 
 
@@ -239,7 +254,7 @@ def regrid_visibilities(measured_visibilities, baseline_u, baseline_v, u_grid):
     regridded_visibilities = real_regrid + 1j * imag_regrid
     normed_regridded_visibilities = numpy.nan_to_num(regridded_visibilities / weights_regrid)
 
-    return normed_regridded_visibilities, weights_regrid
+    return regridded_visibilities, weights_regrid
 
 
 def regrid_visibilities_gaussian(measured_visibilities, baseline_table, u_grid, frequency):
