@@ -135,6 +135,7 @@ class BaselineTable:
     def sub_table(self, baseline_selection_indices):
         subtable = copy.copy(self)
         subtable.selection = baseline_selection_indices
+        subtable.number_of_baselines = len(baseline_selection_indices)
 
         return subtable
 

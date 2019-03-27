@@ -42,8 +42,8 @@ class SkyRealisation:
         if baseline_table is not None:
             n_frequencies = len(frequency_channels)
             #Find longest baseline to determine sky_image sampling, pick highest frequency for longest baseline
-            max_u = numpy.max(numpy.abs(baseline_table[:, 2, -1]))
-            max_v = numpy.max(numpy.abs(baseline_table[:, 3, -1]))
+            max_u = numpy.max(numpy.abs(baseline_table.u(frequency_channels)))
+            max_v = numpy.max(numpy.abs(baseline_table.v(frequency_channels)))
             max_b = max(max_u, max_v)
             #sky_resolutions
             min_l = 1./(2*max_b)
