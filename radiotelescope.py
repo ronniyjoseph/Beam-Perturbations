@@ -152,7 +152,7 @@ def ideal_gaussian_beam(source_l, source_m, nu, diameter=4, epsilon=1):
 
     return beam_attenuation
 
-def broken_gaussian_beam(faulty_dipole, ideal_beam, source_l, source_m, nu, diameter=4, epsilon=1, dx=1.1):
+def broken_gaussian_beam(source_l, source_m, nu, faulty_dipole, diameter=4, epsilon=1, dx=1.1):
     wavelength = c / nu
     x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
                              -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dx
@@ -161,7 +161,8 @@ def broken_gaussian_beam(faulty_dipole, ideal_beam, source_l, source_m, nu, diam
                              -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dx
 
     dipole_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter / 4.)
-    broken_beam = ideal_beam - 1 / 16 * dipole_beam * numpy.exp(
+    ideal_tile_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter)
+    broken_beam = ideal_tile_beam - 1 / 16 * dipole_beam * numpy.exp(
         -2. * numpy.pi * 1j * (x_offsets[faulty_dipole] * numpy.abs(source_l) +
                                y_offsets[faulty_dipole] * numpy.abs(source_m)) / wavelength)
 

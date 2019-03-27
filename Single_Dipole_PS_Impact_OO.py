@@ -21,12 +21,12 @@ from powerspectrum import get_power_spectrum
 
 def main(verbose=True):
 
-    path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 100) * 1e6
+    path = "./HexCoords_Luke.txt"
+    frequency_range = numpy.linspace(135, 165, 50) * 1e6
     faulty_dipole = 6
     faulty_tile = 1036
     sky_param = "random"
-    mode = "parallel"
+    mode = "high_memory"
     processes = 2
     calibrate = True
     beam_type = "gaussian"
@@ -45,7 +45,7 @@ def main(verbose=True):
                                                                                    compute_mode = mode, processes = processes)
     #############################################################################################################################
 
-    get_power_spectrum(frequency_range, baseline_table, ideal_measured_visibilities, broken_measured_visibilities,
+    get_power_spectrum(frequency_range, telescope, ideal_measured_visibilities, broken_measured_visibilities,
                     faulty_tile, plot_file_name, verbose)
     return
 
@@ -159,7 +159,7 @@ def get_observation_single_channel(source_population, baseline_table, min_l, fau
 
 
 def get_observations_memory(source_population = None, baseline_table = None, frequency_range = None, faulty_dipole=None,
-                            faulty_tile = None, beam_type = 'gaussian', calibrate=False, oversampling=1,
+                            faulty_tile = None, beam_type = 'gaussian', calibrate=False, oversampling=2,
                             padding_factor = 1):
 
     print("Computing idealised MWA observations")

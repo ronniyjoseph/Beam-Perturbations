@@ -75,7 +75,8 @@ def regrid_visibilities(measured_visibilities, baseline_u, baseline_v, u_grid):
                                                      numpy.imag(measured_visibilities))
 
     regridded_visibilities = real_regrid + 1j*imag_regrid
-    return regridded_visibilities, weights_regrid
+    normed_regridded_visibilities = numpy.nan_to_num(regridded_visibilities/weights_regrid)
+    return normed_regridded_visibilities, weights_regrid
 
 
 def get_power_spectrum(frequency_range, radio_telescope, ideal_measured_visibilities, broken_measured_visibilities,
