@@ -16,6 +16,8 @@ from skymodel import SkyRealisation
 from radiotelescope import RadioTelescope
 from radiotelescope import ideal_gaussian_beam
 from radiotelescope import broken_gaussian_beam
+from radiotelescope import ideal_mwa_beam_loader
+from radiotelescope import broken_mwa_beam_loader
 
 from powerspectrum import get_power_spectrum
 
@@ -23,7 +25,7 @@ from powerspectrum import get_power_spectrum
 def main(verbose=True):
 
     path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 100) * 1e6
+    frequency_range = numpy.linspace(135, 165, 2) * 1e6
     faulty_dipole = 6 #6
     faulty_tile = 36 #1036, 81
     sky_param = "random"
