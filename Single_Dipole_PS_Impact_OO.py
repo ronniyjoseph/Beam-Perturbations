@@ -10,8 +10,9 @@ import multiprocessing
 
 import powerbox
 
-
+from generaltools import lm_to_theta_phi
 from skymodel import SkyRealisation
+
 from radiotelescope import RadioTelescope
 from radiotelescope import ideal_gaussian_beam
 from radiotelescope import broken_gaussian_beam
@@ -21,16 +22,16 @@ from powerspectrum import get_power_spectrum
 
 def main(verbose=True):
 
-    path = "./HexCoords_Luke.txt"
-    frequency_range = numpy.linspace(135, 165, 50) * 1e6
-    faulty_dipole = 6
-    faulty_tile = 1036
+    path = "./hex_pos.txt"
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
+    faulty_dipole = 6 #6
+    faulty_tile = 36 #1036, 81
     sky_param = "random"
-    mode = "high_memory"
+    mode = "parallel"
     processes = 2
     calibrate = True
     beam_type = "gaussian"
-    plot_file_name = "TEST.pdf"
+    plot_file_name = "Compare_new_code_Core_Gain_Corrected_6.pdf"
 
     telescope = RadioTelescope(load = True, path=path, verbose = verbose)
     baseline_table = telescope.baseline_table

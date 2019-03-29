@@ -38,3 +38,12 @@ def symlog_bounds(data):
     scale = numpy.log10(upper_bound - lower_bound)/7
 
     return lower_bound, upper_bound, threshold, scale
+
+def lm_to_theta_phi(ll, mm):
+    theta = numpy.arcsin(numpy.sqrt(ll ** 2. + mm ** 2.))
+    phi = numpy.arctan(mm / ll)
+
+    #phi is undefined for theta = 0, correct
+    index = numpy.where(theta == 0)
+    phi[index] = 0
+    return theta, phi
