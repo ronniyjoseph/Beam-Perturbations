@@ -1,6 +1,6 @@
 import numpy
 import copy
-
+import os
 from scipy.constants import c
 
 
@@ -227,3 +227,76 @@ def select_baselines(baseline_coordinates, baseline_selection_indices):
         selected_baseline_coordinates = baseline_coordinates[baseline_selection_indices, ...]
     return selected_baseline_coordinates
 
+def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, weights=1, dipole_type='cross',
+                  gaussian_width=30 / 180 * numpy.pi):
+
+
+    dipole_sep = 1.1  # meters
+    x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
+                             -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dipole_sep
+
+    y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
+                             -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dipole_sep
+    z_offsets = numpy.zeros(x_offsets.shape)
+
+    weights += numpy.zeros(x_offsets.shape)
+
+    if dipole_type == 'cross':
+        dipole_jones_matrix = cross_dipole(theta)
+    elif dipole_type == 'gaussian':
+        # print(theta_width)
+        dipole_jones_matrix = gaussian_response(theta, gaussian_width)
+    else:
+        print("Wrong dipole_type: select cross or gaussian")
+
+    ground_plane_field = electric_field_ground_plane(theta, frequency)
+    array_factor = get_array_factor(x_offsets, y_offsets, z_offsets, weights, theta, phi, target_theta, target_phi,
+                                    frequency)
+
+    tile_response = array_factor*ground_plane_field*dipole_jones_matrix
+    tile_response[numpy.isnan(tile_response)] = 0
+
+    if len(theta.shape) > 2:
+        beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response, axis=(0, 1)))
+    else:
+        beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response))
+    normalised_response = tile_response / beam_normalisation*numpy.sum(weights)/16
+
+    return normalised_response
+
+def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointing=0, frequency=150e6):
+
+    wavelength = c / frequency
+    number_dipoles = len(x)
+
+    k_x = (2. * numpy.pi / wavelength) * numpy.sin(theta) * numpy.sin(phi)
+    k_y = (2. * numpy.pi / wavelength) * numpy.sin(theta) * numpy.cos(phi)
+    k_z = (2. * numpy.pi / wavelength) * numpy.cos(theta)
+
+    k_x0 = (2. * numpy.pi / wavelength) * numpy.sin(theta_pointing) * numpy.sin(phi_pointing)
+    k_y0 = (2. * numpy.pi / wavelength) * numpy.sin(theta_pointing) * numpy.cos(phi_pointing)
+    k_z0 = (2. * numpy.pi / wavelength) * numpy.cos(theta_pointing)
+    array_factor_map = numpy.zeros(theta.shape, dtype=complex)
+
+    for i in range(number_dipoles):
+        complex_exponent = -1j * ((k_x - k_x0) * x[i] + (k_y - k_y0) * y[i] + (k_z - k_z0) * z[i])
+
+        # !This step takes a long time, look into optimisation through vectorisation/clever numpy usage
+        dipole_factor = weights[i]*numpy.exp(complex_exponent)
+
+        array_factor_map += dipole_factor
+
+    #filter all NaN
+    array_factor_map[numpy.isnan(array_factor_map)] = 0
+    array_factor_map = array_factor_map/numpy.sum(weights)
+
+    return array_factor_map
+
+def electric_field_ground_plane(theta, frequency=150e6 , height= 0.3):
+    wavelength = c/frequency
+    ground_plane_electric_field = numpy.sin(2.*numpy.pi*height/wavelength*numpy.cos(theta))
+    return ground_plane_electric_field
+
+def cross_dipole(theta):
+    response = numpy.cos(theta)
+    return response

@@ -24,16 +24,16 @@ from powerspectrum import get_power_spectrum
 
 def main(verbose=True):
 
-    path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 2) * 1e6
-    faulty_dipole = 6 #6
-    faulty_tile = 36 #1036, 81
+    path = "./HexCoords_Luke.txt"
+    frequency_range = numpy.linspace(135, 165, 4) * 1e6
+    faulty_dipole = 1 #6
+    faulty_tile = 1036 #1036, 81
     sky_param = "random"
     mode = "parallel"
     processes = 2
-    calibrate = True
-    beam_type = "gaussian"
-    plot_file_name = "Compare_new_code_Core_Gain_Corrected_6.pdf"
+    calibrate = False
+    beam_type = "MWA"
+    plot_file_name = "Compare_MWA_Beam_Hex_Gain_1.pdf"
 
     telescope = RadioTelescope(load = True, path=path, verbose = verbose)
     baseline_table = telescope.baseline_table
@@ -130,8 +130,8 @@ def get_observation_single_channel(source_population, baseline_table, min_l, fau
     #############################################################################
     if beam_type == "MWA":
         tt, pp, = lm_to_theta_phi(ll, mm)
-        ideal_beam = ideal_mwa_beam_loader(tt, pp, frequency_range[frequency_index])
-        broken_beam = broken_mwa_beam_loader(tt, pp, frequency_range[frequency_index], faulty_dipole)
+        ideal_beam = ideal_mwa_beam_loader(tt, pp, frequency_range[frequency_index], load= False)
+        broken_beam = broken_mwa_beam_loader(tt, pp, frequency_range[frequency_index], faulty_dipole, load= False)
 
     elif beam_type == "gaussian":
         ideal_beam = ideal_gaussian_beam(ll, mm, frequency_range[frequency_index])
