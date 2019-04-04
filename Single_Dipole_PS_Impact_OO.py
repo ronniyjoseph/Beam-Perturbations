@@ -20,19 +20,24 @@ from radiotelescope import ideal_mwa_beam_loader
 from radiotelescope import broken_mwa_beam_loader
 
 from powerspectrum import get_power_spectrum
+import os
+import argparse
 
+def main(beam_type = gaussian, faulty_dipole = 1, faulty_tile = 36,verbose=True):
 
-def main(verbose=True):
+    output_path = "/data/rjoseph/Hybrid_Calibration/Tile_Pertubation/Simulation_Output/"
+    prefix = ""
+    suffix = ""
 
-    path = "./hex_pos.txt"
-    frequency_range = numpy.linspace(135, 165, 100) * 1e6
+    path = "./HexCoords_Luke.txt"
+    frequency_range = numpy.linspace(135, 165, 4) * 1e6
     faulty_dipole = 1 #6
     faulty_tile = 36 #1036, 81, 36
     sky_param = "random"
     mode = "parallel"
     processes = 2
     calibrate = True
-    beam_type = "MWA"
+    beam_type = "gaussian"
     plot_file_name = "Compare_MWA_Beam_Core_Gain_Corrected_1.pdf"
 
     telescope = RadioTelescope(load = True, path=path, verbose = verbose)
@@ -48,8 +53,32 @@ def main(verbose=True):
                                                                                    compute_mode = mode, processes = processes)
     #############################################################################################################################
 
+    #save simulated data:
+    project_name = prefix + beam_type + "_tile" + str(faulty_tile) +"_dipole" + str(faulty_dipole) + "_corrected_" \
+                   + str(calibrate) + suffix
+
+    if not os.path.exists(output_path + project_name):
+        print
+        ""
+        print
+        "!!!Warning: Creating output folder at output destination!"
+        os.makedirs(output_path + project_name)
+        output_types = ["ideal", "broken"]
+        numpy.save(output_path + project_name + "/" + "ideal" + "_simulated_data", ideal_measured_visibilities)
+        numpy.save(output_path + project_name + "/" + "broken" + "_simulated_data", broken_measured_visibilities)
+
+    file = open(output_path + project_name + "/" + "simulation_parameters.log", "w")
+    file.write(f"Frequency range: {numpy.min(frequency_range)} - {numpy.max(frequency_range)} MHz \n")
+    file.write(f"Faulty Dipole: {faulty_dipole}\n")
+    file.write(f"Faulty Tile: {faulty_tile}\n")
+    file.write(f"Sky Parameters: {sky_param} \n")
+    file.write(f"Calibrate: {calibrate}\n")
+    file.write(f"Beam model:{beam_type} \n")
+    file.write(f"Position File: {path}")
+    file.close()
+
     get_power_spectrum(frequency_range, telescope, ideal_measured_visibilities, broken_measured_visibilities,
-                    faulty_tile, plot_file_name, verbose)
+                    faulty_tile, output_path + project_name + "/" + plot_file_name, verbose)
     return
 
 
@@ -277,6 +306,22 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
 
 if __name__ == "__main__":
     start = time.process_time()
+    parser = argparse.ArgumentParser(description='Redundant \
+        Calibration Simulation set up')
+    parser.add_argument('-path', action='store',
+                        default="/home/rjoseph/Bulk/Redundant_Calibration/Simulation_Output/"
+                                "TEST0_SLPO_Hex_P_BG_full_FIX_half_range/",
+
+                        type=str)
+    parser.add_argument('-sim_type', action='store', default="moving_source",
+                        type=str)
+    parser.add_argument('-array_fix', action='store_true', default=False)
+    parser.add_argument('-MP', action='store_true', default=False, )
+    parser.add_argument('-MP_Processes', action='store', default=8,
+                        type=int)
+
+    args = parser.parse_args()
+
     main()
     end = time.process_time()
     print("Total time is", end - start)

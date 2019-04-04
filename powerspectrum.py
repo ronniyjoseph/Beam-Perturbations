@@ -201,5 +201,5 @@ def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS, diff_PS, plot_
     diff_cax = colorbar(diff_plot)
     diff_cax.set_label(r"$[Jy^2]$", fontsize=fontsize)
 
-    figure.savefig("../../Plots/Tile_Beam_Perturbation_Plots/" + plot_file_name)
+    figure.savefig(plot_file_name)
     return
