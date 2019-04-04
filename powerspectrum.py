@@ -200,6 +200,6 @@ def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS, diff_PS, plot_
     broken_cax = colorbar(broken_plot)
     diff_cax = colorbar(diff_plot)
     diff_cax.set_label(r"$[Jy^2]$", fontsize=fontsize)
-
+    print(plot_file_name)
     figure.savefig(plot_file_name)
     return
