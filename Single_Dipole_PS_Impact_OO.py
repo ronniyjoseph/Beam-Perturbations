@@ -24,16 +24,16 @@ from powerspectrum import get_power_spectrum
 
 def main(verbose=True):
 
-    path = "./HexCoords_Luke.txt"
-    frequency_range = numpy.linspace(135, 165, 4) * 1e6
+    path = "./hex_pos.txt"
+    frequency_range = numpy.linspace(135, 165, 100) * 1e6
     faulty_dipole = 1 #6
-    faulty_tile = 1036 #1036, 81
+    faulty_tile = 36 #1036, 81, 36
     sky_param = "random"
     mode = "parallel"
     processes = 2
-    calibrate = False
+    calibrate = True
     beam_type = "MWA"
-    plot_file_name = "Compare_MWA_Beam_Hex_Gain_1.pdf"
+    plot_file_name = "Compare_MWA_Beam_Core_Gain_Corrected_1.pdf"
 
     telescope = RadioTelescope(load = True, path=path, verbose = verbose)
     baseline_table = telescope.baseline_table
