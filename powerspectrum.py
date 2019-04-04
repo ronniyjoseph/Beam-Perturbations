@@ -104,7 +104,7 @@ def get_power_spectrum(frequency_range, radio_telescope, ideal_measured_visibili
     broken_regridded_weights= ideal_regridded_weights.copy()
 
     for frequency_index in range(len(frequency_range)):
-
+        print(frequency_index)
         ideal_regridded_cube[..., frequency_index], ideal_regridded_weights[..., frequency_index] = regrid_visibilities(
             ideal_measured_visibilities[:, frequency_index], baseline_table.u(frequency_range[frequency_index]),
             baseline_table.v(frequency_range[frequency_index]), regridded_uv)
@@ -192,9 +192,11 @@ def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS, diff_PS, plot_
     # broken_axes.set_xlim(10**-2.5, 10**-0.5)
     # difference_axes.set_xlim(10**-2.5, 10**-0.5)
 
-    ideal_axes.set_xlim(5, 200)
-    broken_axes.set_xlim(5, 200)
-    difference_axes.set_xlim(5, 200)
+    print(numpy.min(uv_bins))
+
+    ideal_axes.set_xlim(numpy.min(uv_bins), numpy.max(uv_bins))
+    broken_axes.set_xlim(numpy.min(uv_bins), numpy.max(uv_bins))
+    difference_axes.set_xlim(numpy.min(uv_bins), numpy.max(uv_bins))
 
     ideal_cax = colorbar(ideal_plot)
     broken_cax = colorbar(broken_plot)
