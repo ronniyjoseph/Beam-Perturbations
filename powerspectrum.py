@@ -126,11 +126,11 @@ def get_power_spectrum(frequency_range, radio_telescope, ideal_measured_visibili
 
     ideal_PS, uv_bins = powerbox.tools.angular_average_nd(numpy.abs(ideal_uvn) ** 2,
                                                           coords=[regridded_uv, regridded_uv,
-                                                                  eta_coords], bins=50,
+                                                                  eta_coords], bins=75,
                                                           n=2, weights=numpy.sum(ideal_regridded_weights, axis=2))
     broken_PS, uv_bins = powerbox.tools.angular_average_nd(numpy.abs(broken_uvn) ** 2,
                                                            coords=[regridded_uv, regridded_uv,
-                                                                   eta_coords], bins=50,
+                                                                   eta_coords], bins=75,
                                                            n=2, weights=numpy.sum(broken_regridded_weights, axis=2))
 
     diff_PS = ideal_PS - broken_PS
@@ -143,7 +143,8 @@ def get_power_spectrum(frequency_range, radio_telescope, ideal_measured_visibili
     return
 
 def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS, diff_PS, plot_file_name, faulty_tile = -1, ):
-    fontsize = 15
+    fontsize = 20
+    tickfontsize = 15
     figure = pyplot.figure(figsize=(30, 10))
     ideal_axes = figure.add_subplot(131)
     broken_axes = figure.add_subplot(132)
@@ -180,28 +181,32 @@ def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS, diff_PS, plot_
     x_labeling = r"$ |u |$"
     y_labeling = r"$ \eta $"
 
-    ideal_axes.set_xlabel(x_labeling, fontsize=fontsize)
-    ideal_axes.set_ylabel(y_labeling, fontsize=fontsize)
-
-    broken_axes.set_xlabel(x_labeling, fontsize=fontsize)
+    ideal_axes.set_xlabel(x_labeling, fontsize=tickfontsize )
+    ideal_axes.set_ylabel(y_labeling, fontsize=tickfontsize )
+    broken_axes.set_xlabel(x_labeling, fontsize=tickfontsize )
 
     difference_axes.set_xlabel(x_labeling, fontsize=fontsize)
+
+    ideal_axes.tick_params(axis='both', which='major', labelsize=tickfontsize)
+    broken_axes.tick_params(axis='both', which='major', labelsize=tickfontsize)
+    difference_axes.tick_params(axis='both', which='major', labelsize=tickfontsize)
 
     figure.suptitle(f"Tile {faulty_tile}")
     # ideal_axes.set_xlim(10**-2.5, 10**-0.5)
     # broken_axes.set_xlim(10**-2.5, 10**-0.5)
     # difference_axes.set_xlim(10**-2.5, 10**-0.5)
 
-    print(numpy.min(uv_bins))
+    print(uv_bins)
 
-    ideal_axes.set_xlim(numpy.min(uv_bins), numpy.max(uv_bins))
-    broken_axes.set_xlim(numpy.min(uv_bins), numpy.max(uv_bins))
-    difference_axes.set_xlim(numpy.min(uv_bins), numpy.max(uv_bins))
+    ideal_axes.set_xlim(numpy.nanmin(uv_bins), 2*1e2)
+    broken_axes.set_xlim(numpy.nanmin(uv_bins), 2*1e2)
+    difference_axes.set_xlim(numpy.nanmin(uv_bins), 2*1e2)
 
     ideal_cax = colorbar(ideal_plot)
     broken_cax = colorbar(broken_plot)
     diff_cax = colorbar(diff_plot)
     diff_cax.set_label(r"$[Jy^2]$", fontsize=fontsize)
+    diff_cax.ax.tick_params(axis='both', which='major', labelsize=tickfontsize)
     print(plot_file_name)
     figure.savefig(plot_file_name)
     return
