@@ -53,6 +53,11 @@ class PowerSpectrumData:
     def regrid_data(self, keep_raw = True):
         return
 
+def serialised_gridding():
+    return
+
+def parallelised_gridding():
+    return
 
 def regrid_visibilities(measured_visibilities, baseline_u, baseline_v, u_grid):
     u_shifts = numpy.diff(u_grid) / 2.
@@ -203,7 +208,7 @@ def get_power_spectrum(frequency_range, radio_telescope, ideal_measured_visibili
                                                                    eta_coords], bins=75,
                                                            n=2, weights=numpy.sum(broken_regridded_weights, axis=2))
 
-    diff_PS, uv_bins = powerbox.tools.angular_average_nd(numpy.abs(broken_uvn - ideal_PS) ** 2,
+    diff_PS, uv_bins = powerbox.tools.angular_average_nd(numpy.abs(broken_uvn - ideal_uvn) ** 2,
                                                            coords=[regridded_uv, regridded_uv,
                                                                    eta_coords], bins=75,
                                                            n=2, weights=numpy.sum(broken_regridded_weights, axis=2))
@@ -287,7 +292,11 @@ def power_spectrum_plot(uv_bins, eta_coords, ideal_PS, broken_PS, diff_PS, plot_
     broken_cax = colorbar(broken_plot)
     diff_cax = colorbar(diff_plot)
     diff_cax.set_label(r"$[Jy^2]$", fontsize=fontsize)
+    ideal_cax.ax.tick_params(axis='both', which='major', labelsize=tickfontsize)
+    broken_cax.tick_params(axis='both', which='major', labelsize=tickfontsize)
     diff_cax.ax.tick_params(axis='both', which='major', labelsize=tickfontsize)
+
+
     print(plot_file_name)
     figure.savefig(plot_file_name)
     return
