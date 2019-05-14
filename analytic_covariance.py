@@ -7,7 +7,7 @@ import powerbox
 
 
 def sky_covariance(u, v, nu):
-    gamma = 0
+    gamma = 0.8
     nn1, nn2 = numpy.meshgrid(nu, nu)
 
     width_1_tile = beam_width(nn1)
@@ -98,46 +98,88 @@ def moment_returner(n_order, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, S_low=40
     return moment
 
 
+def dft_matrix(nu):
+    dft = numpy.exp(-2 * numpy.pi * 1j / len(nu)) ** numpy.arange(0, len(nu), 1)
+    dftmatrix = numpy.vander(dft, increasing=True)/numpy.sqrt(len(nu))
+
+    return dftmatrix
+
+
+def calculate_PS():
+
+    nu = numpy.linspace(135, 165, 5)*1e6
+
+    u = numpy.linspace(-200, 200, 100)
+    uu, vv = numpy.meshgrid(u, u)
+
+    variance_cube = numpy.zeros((len(u), len(u), len(nu)), dtype=complex)
+    dftmatrix = dft_matrix(nu)
+
+    print("calculating all variances for all uv-cells")
+    for i in range(len(u)):
+        for j in range(len(u)):
+            nu_cov = sky_covariance(uu[i, j], vv[i, j], nu)
+            eta_cov = numpy.dot(numpy.dot(dftmatrix.T.conj(), nu_cov), dftmatrix)
+
+            #etanu, eta = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(0,))
+            #etaeta, etaprime = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(1,))
+
+            variance_cube[i, j, :] = numpy.diag(eta_cov)
+
+    print("Taking circular average")
+    # Take circular average
+    PS, bins = powerbox.tools.angular_average_nd(numpy.real(variance_cube), coords=[u, u, nu], bins=len(u) / 2, n=2)
+
+    figure = pyplot.figure()
+    axes = figure.add_subplot(111)
+    plot = axes.pcolor(bins, nu/1e6, PS.T)
+    colorbar(plot)
+    pyplot.show()
+
+    return
+
+
+def calculate_sky_PS():
+
+    nu = numpy.linspace(135, 165, 3)*1e6
+
+    u = numpy.linspace(0, 200, 10)
+
+    variance_cube = numpy.zeros((len(u), len(nu)), dtype=complex)
+    dftmatrix = dft_matrix(nu)
+
+
+    nu_cov = sky_covariance(u[2], 0, nu)
+
+    #what does the covariance look like
+    #print(numpy.diag(nu_cov))
+    #pyplot.plot(nu, numpy.diag(nu_cov))
+    #pyplot.show()
+
+    #pyplot.pcolor(nu, nu, nu_cov)
+    #pyplot.show()
+
+    print(dftmatrix*numpy.sqrt(len(nu)))
+    pyplot.imshow(numpy.imag(numpy.dot(dftmatrix.conj().T, dftmatrix)))
+    pyplot.show()
+
+    eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, nu_cov), dftmatrix)
+
+            #etanu, eta = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(0,))
+            #etaeta, etaprime = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(1,))
+
+    #print(numpy.diag(numpy.real(eta_cov)))
+    #pyplot.loglog(nu, numpy.diag(numpy.abs(eta_cov)))
+    #pyplot.show()
+
+    #pyplot.imshow(numpy.log10(numpy.real(eta_cov)))
+    #pyplot.show()
+
+
+    return
 
 
 
-u = 10
-v = 300
+if __name__ == "__main__":
+    calculate_sky_PS()
 
-nu = numpy.linspace(135, 165, 100)*1e6
-matrix = covariance(u, v ,nu)
-
-dft = numpy.exp(-2*numpy.pi*1j/len(nu))**numpy.arange(0, len(nu), 1)
-
-dftmatrix = numpy.vander(dft)
-cov = numpy.dot(numpy.dot(dftmatrix, matrix), dftmatrix.T.conj())
-
-figure = pyplot.figure()
-axes = figure.add_subplot(111)
-
-
-
-u =  numpy.linspace(-200, 200, 15)
-uu, vv = numpy.meshgrid(u, u)
-
-variance_cube = numpy.zeros((len(u), len(u), len(nu)))
-
-print("calculating all variances for all uv-cells")
-for i in range(len(u)):
-    for j in range(len(u)):
-        matrix = covariance(uu[i,j], vv[i,j], nu)
-        #dft = numpy.exp(-2 * numpy.pi * 1j / len(nu)) ** numpy.arange(0, len(nu), 1)
-        #dftmatrix = numpy.vander(dft)
-        #cov = numpy.dot(numpy.dot(dftmatrix, matrix), dftmatrix.T.conj())
-
-        etanu, eta = powerbox.dft.fft(matrix, L = numpy.max(nu) - numpy.min(nu), axes = (0,))
-        etaeta, etaprime = powerbox.dft.fft(matrix, L = numpy.max(nu) - numpy.min(nu), axes = (1,))
-        variance_cube[i, j, :] = numpy.trace(etaeta)
-
-print("Taking circular average")
-#Take circular average
-PS, bins = powerbox.tools.angular_average_nd(variance_cube, coords= [u, u, eta], bins = len(u)/2, n = 2)
-print(eta)
-plot = axes.pcolor(bins, eta, PS.T)
-colorbar(plot)
-pyplot.show()
