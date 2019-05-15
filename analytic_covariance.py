@@ -1,4 +1,6 @@
 from scipy.constants import c
+from scipy import signal
+
 from radiotelescope import beam_width
 from matplotlib import pyplot
 from generaltools import colorbar
@@ -16,8 +18,7 @@ def sky_covariance(u, v, nu):
     Sigma = width_1_tile**2*width_2_tile**2/(width_1_tile**2 + width_2_tile**2)
 
     mu_2_r = moment_returner(2, S_high = 1)
-
-    sky_covariance = (nn1*nn2)**-gamma * mu_2_r *Sigma**2 *numpy.exp(-2*numpy.pi**2*(u**2 + v**2)*(nn1 - nn2)**2*Sigma)
+    sky_covariance = (nn1*nn2/numpy.min(nu)**2)**-gamma * mu_2_r *Sigma**2 *numpy.exp(-2*numpy.pi**2*(u**2 + v**2)*(nn1 - nn2)**2/numpy.min(nu)**2*Sigma)
 
     return sky_covariance
 
@@ -104,21 +105,28 @@ def dft_matrix(nu):
 
     return dftmatrix
 
+def blackman_harris_taper(frequency_range):
+    window = signal.blackmanharris(len(frequency_range))
+    return window
 
 def calculate_PS():
 
     nu = numpy.linspace(135, 165, 5)*1e6
+    u = numpy.linspace(0, 200, 100)
 
-    u = numpy.linspace(-200, 200, 100)
     uu, vv = numpy.meshgrid(u, u)
-
     variance_cube = numpy.zeros((len(u), len(u), len(nu)), dtype=complex)
-    dftmatrix = dft_matrix(nu)
 
+    window_function = blackman_harris_taper(nu)
+    taper, taper_prime = numpy.meshgrid(window_function, window_function)
+
+    dftmatrix = dft_matrix(nu)
     print("calculating all variances for all uv-cells")
     for i in range(len(u)):
         for j in range(len(u)):
             nu_cov = sky_covariance(uu[i, j], vv[i, j], nu)
+            tapered_cov = nu_cov*taper*taper_prime
+
             eta_cov = numpy.dot(numpy.dot(dftmatrix.T.conj(), nu_cov), dftmatrix)
 
             #etanu, eta = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(0,))
@@ -140,43 +148,68 @@ def calculate_PS():
 
 
 def calculate_sky_PS():
+    u = numpy.linspace(0, 200, 50)
+    nu = numpy.linspace(135, 165, 100)*1e6
 
-    nu = numpy.linspace(135, 165, 3)*1e6
-
-    u = numpy.linspace(0, 200, 10)
-
-    variance_cube = numpy.zeros((len(u), len(nu)), dtype=complex)
+    window_function = blackman_harris_taper(nu)
+    taper1, taper2 = numpy.meshgrid(window_function, window_function)
     dftmatrix = dft_matrix(nu)
 
 
-    nu_cov = sky_covariance(u[2], 0, nu)
+    eta = numpy.arange(0, len(nu), 1)/(nu.max() - nu.min())
 
-    #what does the covariance look like
-    #print(numpy.diag(nu_cov))
-    #pyplot.plot(nu, numpy.diag(nu_cov))
-    #pyplot.show()
+    variance = numpy.zeros((len(u), len(nu)))
+    for i in range(len(u)):
+        nu_cov = sky_covariance(u[i], 0, nu)
+        tapered_cov = nu_cov * taper1 * taper2
+        eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
 
-    #pyplot.pcolor(nu, nu, nu_cov)
-    #pyplot.show()
+        variance[i, :] = numpy.diag(numpy.real(eta_cov))
 
-    print(dftmatrix*numpy.sqrt(len(nu)))
-    pyplot.imshow(numpy.imag(numpy.dot(dftmatrix.conj().T, dftmatrix)))
+    figure = pyplot.figure()
+    axes = figure.add_subplot(111)
+    psplot = axes.pcolor(u, eta[:int(len(eta)/2)], numpy.log10(variance[:, :int(len(eta)/2)].T))
+    print(eta[:int(len(eta)/2)])
+    colorbar(psplot)
+
+    axes.set_xscale('log')
+    axes.set_yscale('log')
+
+    axes.set_xlim(0.9e-2, 0.5)
     pyplot.show()
-
-    eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, nu_cov), dftmatrix)
-
-            #etanu, eta = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(0,))
-            #etaeta, etaprime = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(1,))
-
-    #print(numpy.diag(numpy.real(eta_cov)))
-    #pyplot.loglog(nu, numpy.diag(numpy.abs(eta_cov)))
-    #pyplot.show()
-
-    #pyplot.imshow(numpy.log10(numpy.real(eta_cov)))
-    #pyplot.show()
 
 
     return
+
+def test_dft_on_signal():
+    #make a sinusoidal signal
+    time = numpy.linspace(0, 100, 101)
+
+    f1 = 1/5
+    f2 = 1/4
+    sample_rate = 1/(time.max() - time.min())
+
+    signal = numpy.sin(2*numpy.pi*f1*time) + numpy.sin(2*numpy.pi*f2*time)
+    taper = blackman_harris_taper(time)
+    dftmatrix = dft_matrix(time)
+
+    frequencies = numpy.arange(0, len(time), 1)*sample_rate
+    ft_signal = numpy.dot(dftmatrix, taper*signal)
+
+    inverse_ft_signal = numpy.dot(dftmatrix.conj().T, ft_signal)
+
+    fig = pyplot.figure()
+    axes1 = fig.add_subplot(131)
+    axes2 = fig.add_subplot(132)
+    axes3 = fig.add_subplot(133)
+
+    axes1.plot(time, taper*signal)
+    axes2.plot(frequencies[:int(len(frequencies)/2)], numpy.abs(ft_signal[:int(len(frequencies)/2)]))
+    axes3.plot(inverse_ft_signal)
+
+    pyplot.show()
+
+
 
 
 
