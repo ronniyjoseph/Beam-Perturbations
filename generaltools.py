@@ -1,4 +1,6 @@
 import numpy
+from scipy.constants import c
+from scipy.constants import parsec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
@@ -47,3 +49,23 @@ def lm_to_theta_phi(ll, mm):
     index = numpy.where(theta == 0)
     phi[index] = 0
     return theta, phi
+
+
+def u_to_k_perp(u, frequency):
+    distance = comoving_distance(frequency)
+    k_perp = 2*numpy.pi*u/distance
+    return k_perp
+
+def comoving_distance(nu_observed, H0 = 70.4, Omega_M = 0.27, Omega_k = 0, Omega_Lambda = 0.73):
+
+    hubble_distance = c/H0  *1e-3*1e6*parsec
+
+    z = redshift(nu_observed)
+    d = 1
+    return d
+
+def redshift(nu_observed, nu_emission = 1.42e9):
+
+    z = (nu_emission - nu_observed)/nu_observed
+
+    return z
