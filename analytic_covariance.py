@@ -7,6 +7,8 @@ from generaltools import colorbar
 import numpy
 import powerbox
 
+import matplotlib.colors as colors
+
 
 def sky_covariance(u, v, nu):
     gamma = 0.8
@@ -103,7 +105,10 @@ def dft_matrix(nu):
     dft = numpy.exp(-2 * numpy.pi * 1j / len(nu)) ** numpy.arange(0, len(nu), 1)
     dftmatrix = numpy.vander(dft, increasing=True)/numpy.sqrt(len(nu))
 
-    return dftmatrix
+    eta = numpy.arange(0, len(nu), 1)/(nu.max() - nu.min())
+
+
+    return dftmatrix, eta
 
 def blackman_harris_taper(frequency_range):
     window = signal.blackmanharris(len(frequency_range))
@@ -148,37 +153,54 @@ def calculate_PS():
 
 
 def calculate_sky_PS():
-    u = numpy.linspace(0, 200, 50)
+    u = numpy.logspace(0, 2.1, 100)
     nu = numpy.linspace(135, 165, 100)*1e6
 
     window_function = blackman_harris_taper(nu)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
-    dftmatrix = dft_matrix(nu)
 
-
-    eta = numpy.arange(0, len(nu), 1)/(nu.max() - nu.min())
+    dftmatrix, eta = dft_matrix(nu)
 
     variance = numpy.zeros((len(u), len(nu)))
+
     for i in range(len(u)):
         nu_cov = sky_covariance(u[i], 0, nu)
         tapered_cov = nu_cov * taper1 * taper2
         eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
-
         variance[i, :] = numpy.diag(numpy.real(eta_cov))
 
+    plot_PS(u, eta[:int(len(eta)/2)], variance[: ,:int(len(eta)/2)])
+
+
+    return
+
+def plot_PS(u_bins, eta_bins, PS, cosmological= False):
     figure = pyplot.figure()
     axes = figure.add_subplot(111)
-    psplot = axes.pcolor(u, eta[:int(len(eta)/2)], numpy.log10(variance[:, :int(len(eta)/2)].T))
-    print(eta[:int(len(eta)/2)])
-    colorbar(psplot)
+
+    if cosmological:
+
+
+
+    psplot = axes.pcolor(u_bins, eta_bins, PS.T,
+                         norm=colors.LogNorm(vmin=numpy.nanmin(PS),
+                                             vmax=numpy.nanmax(PS)))
+
+
+
+
+    cax = colorbar(psplot)
 
     axes.set_xscale('log')
     axes.set_yscale('log')
 
-    axes.set_xlim(0.9e-2, 0.5)
+    axes.set_xlim(xmin=1)
+    axes.set_ylim(eta_bins[1], eta_bins.max())
+
+    axes.set_xlabel(r"|u|")
+    axes.set_ylabel(r"$\eta$ [MHz$^{-1}$]")
+    cax.set_label(r"Variance [Jy$^2$]")
     pyplot.show()
-
-
     return
 
 def test_dft_on_signal():
