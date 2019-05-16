@@ -1,6 +1,6 @@
 from scipy.constants import c
 from scipy import signal
-
+from generaltools import symlog_bounds
 from radiotelescope import beam_width
 from matplotlib import pyplot
 from generaltools import colorbar
@@ -50,8 +50,6 @@ def beam_covariance(u, v, nu, dx =1):
     width_1_dipole = beam_width(nn1, diameter=1)
     width_2_dipole = beam_width(nn2, diameter=1)
 
-    sigma_null = width_1_tile**2*width_2_tile**2/(width_1_tile**2 + width_2_tile**2)
-
     sigma_A = (width_1_tile * width_2_tile * width_1_dipole * width_2_dipole) ** 2 / (
                 width_2_tile ** 2 * width_1_dipole ** 2 * width_2_dipole ** 2 +
                 width_1_tile ** 2 * width_1_dipole ** 2 * width_2_dipole ** 2 +
@@ -61,34 +59,30 @@ def beam_covariance(u, v, nu, dx =1):
     sigma_B = (width_1_tile*width_2_tile*width_2_dipole)**2/(2*width_2_tile**2*width_2_dipole**2 + width_1_tile**2*width_2_dipole**2 +
                                                         width_1_tile**2*width_2_tile**2)
 
-    sigma_C = (width_1_tile*width_2_tile*width_1_dipole)**2/(2*width_1_tile**2*width_1_dipole**2 + width_2_tile**2*width_1_dipole**2 +
+    sigma_C = (width_1_tile*width_2_tile*width_1_dipole)**2/(width_2_tile**2*width_1_dipole**2 + 2*width_2_tile**2*width_1_dipole**2 +
                                                         width_1_tile**2*width_2_tile**2)
 
 
-    sigma_D = width_1_tile**2*width_1_dipole**2/(width_1_tile**2 + width_1_dipole**2)
-    sigma_D_prime = width_2_tile**2*width_2_dipole**2/(width_2_tile**2 + width_2_dipole**2)
-
-    #null = 2*numpy.pi*mu_2*sigma_null*numpy.exp(-2*numpy.pi**2*(u**2+v**2)*((nn1-nn2)/nu[0])**2*sigma_null)
-
-    A = (mu_2_m + mu_2_r)*numpy.sum(2 * numpy.pi * sigma_A / len(y_offsets) ** 2 * numpy.exp(-2 * numpy.pi ** 2 * sigma_A * (
-                (u * (nn1 - nn2) / nu[0] + xx /c* (nn1 - nn2)) ** 2 + (v * (nn1 - nn2) / nu[0] + yy /c*(nn1 - nn2))**2))
-                                                                         , axis=-1)
-
-    B = mu_2_r*numpy.sum(2*numpy.pi*sigma_B/len(y_offsets)**2*numpy.exp(-2 * numpy.pi ** 2 * sigma_B * (
-            (u * (nn1 - nn2) / nu[0] + xx/c*nn2)**2 + (v * (nn1 - nn2) / nu[0] + yy/c*nn2)**2)), axis = -1)
-
-    C = mu_2_r*numpy.sum(-2*numpy.pi*sigma_B/len(y_offsets)**2*numpy.exp(-2 * numpy.pi ** 2 * sigma_B * (
-            (u * (nn1 - nn2) / nu[0] + xx/c*nn2)**2 + (v * (nn1 - nn2) / nu[0] + yy/c*nn1)**2)), axis = -1)
+    sigma_D1 = width_1_tile**2*width_1_dipole**2/(width_1_tile**2 + width_1_dipole**2)
+    sigma_D2 = width_2_tile**2*width_2_dipole**2/(width_2_tile**2 + width_2_dipole**2)
 
 
-    D = (mu_1_m**2 + mu_1_m*mu_1_r + mu_1_r**2) * numpy.sum(2*numpy.pi*sigma_D*sigma_D_prime/len(x_offsets)**3*\
-        numpy.exp(-2*numpy.pi**2*sigma_D*((u*nn1/nu[0] - xx/c*nn1)**2 + (v*nn1/nu[0] - yy/c*nn1)**2)) *\
-        numpy.exp(-2*numpy.pi**2*sigma_D_prime*((u*nn2/nu[0] - xx/c*nn2)**2 + (v*nn2/nu[0] - yy/c*nn2)**2)), axis = -1)
+    A = (mu_2_m + mu_2_r)*numpy.sum(2 * numpy.pi * sigma_A / len(y_offsets) ** 3 * numpy.exp(-2 * numpy.pi ** 2 * sigma_A * (
+        (u / nu[0] + xx /c) ** 2 + (v / nu[0] + yy /c)**2)*(nn1 - nn2)**2.), axis=-1)
 
-    E = (mu_1_m**2 + mu_1_m*mu_1_r + mu_1_r**2) * numpy.sum(2*numpy.pi*sigma_D*sigma_D_prime/len(x_offsets)**3*\
-        numpy.exp(-2*numpy.pi**2*sigma_D*((u*nn1/nu[0] - xx/c*nn1)**2 +
-                                                    (v*nn1/nu[0] - yy/c*nn1)**2)), axis = -1)*\
-        numpy.sum(numpy.exp(-2*numpy.pi**2*sigma_D_prime*((u * nn2 / nu[0] - xx / c * nn2) ** 2 +
+    B = -2*numpy.pi*mu_2_r*numpy.sum(sigma_B/len(y_offsets)**2*numpy.exp(-2 * numpy.pi ** 2 * sigma_B * (
+            (u*(nn1 - nn2) / nu[0] + xx/c*nn2)**2 + (v*(nn1 - nn2)**2 / nu[0] + yy/c*nn2)**2)), axis = -1)
+
+    C = -2*numpy.pi*mu_2_r*numpy.sum(sigma_C/len(y_offsets)**2*numpy.exp(-2 * numpy.pi ** 2 * sigma_C * (
+            (u*(nn1 - nn2) / nu[0] + xx/c*nn2)**2 + (v*(nn1 - nn2)**2 / nu[0] + yy/c*nn1)**2)), axis = -1)
+
+    D = (mu_1_m**2 + 2*mu_1_m*mu_1_r + mu_1_r**2) *2*numpy.pi* numpy.sum(sigma_D1*sigma_D2/len(x_offsets)**3*\
+        numpy.exp(-2*numpy.pi**2*sigma_D1*((u*nn1/nu[0] - xx/c*nn1)**2 + (v*nn1/nu[0] - yy/c*nn1)**2)) *\
+        numpy.exp(-2*numpy.pi**2*sigma_D2*((u*nn2/nu[0] - xx/c*nn2)**2 + (v*nn2/nu[0] - yy/c*nn2)**2)), axis = -1)
+
+    E = (mu_1_m**2 + 2*mu_1_m*mu_1_r + mu_1_r**2) *2*numpy.pi* numpy.sum(sigma_D1*sigma_D2/len(x_offsets)**4*\
+        numpy.exp(-2*numpy.pi**2*sigma_D1*((u*nn1/nu[0] - xx/c*nn1)**2 +(v*nn1/nu[0] - yy/c*nn1)**2)), axis = -1)*\
+        numpy.sum(numpy.exp(-2*numpy.pi**2*sigma_D2*((u * nn2 / nu[0] - xx / c * nn2) ** 2 +
                                                                   (v * nn2 / nu[0] - yy / c * nn2) ** 2)), axis=-1)
 
     return (A + B + C + D + E)
@@ -114,41 +108,68 @@ def blackman_harris_taper(frequency_range):
     window = signal.blackmanharris(len(frequency_range))
     return window
 
-def calculate_PS():
-
-    nu = numpy.linspace(135, 165, 5)*1e6
-    u = numpy.linspace(0, 200, 100)
+def calculate_beam_PS():
+    u = numpy.linspace(200, 200, 20)
+    nu = numpy.linspace(135, 165, 50)*1e6
 
     uu, vv = numpy.meshgrid(u, u)
-    variance_cube = numpy.zeros((len(u), len(u), len(nu)), dtype=complex)
+    variance_cube = numpy.zeros((len(u), len(u), len(nu)))
 
     window_function = blackman_harris_taper(nu)
-    taper, taper_prime = numpy.meshgrid(window_function, window_function)
+    taper1, taper2 = numpy.meshgrid(window_function, window_function)
 
-    dftmatrix = dft_matrix(nu)
+    dftmatrix, eta = dft_matrix(nu)
+
     print("calculating all variances for all uv-cells")
     for i in range(len(u)):
-        for j in range(len(u)):
-            nu_cov = sky_covariance(uu[i, j], vv[i, j], nu)
-            tapered_cov = nu_cov*taper*taper_prime
+        nu_cov = beam_covariance(uu[i, j], vv[i, j], nu)
+        tapered_cov = nu_cov*taper1*taper2
 
-            eta_cov = numpy.dot(numpy.dot(dftmatrix.T.conj(), nu_cov), dftmatrix)
+        eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
 
-            #etanu, eta = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(0,))
-            #etaeta, etaprime = powerbox.dft.fft(matrix, L=numpy.max(nu) - numpy.min(nu), axes=(1,))
-
-            variance_cube[i, j, :] = numpy.diag(eta_cov)
+        variance_cube[i, j, :] = numpy.diag(numpy.real(eta_cov))
 
     print("Taking circular average")
     # Take circular average
-    PS, bins = powerbox.tools.angular_average_nd(numpy.real(variance_cube), coords=[u, u, nu], bins=len(u) / 2, n=2)
+    #print(variance_cube)
+    #PS, u_bins = powerbox.tools.angular_average_nd(variance_cube, coords=[u, u, eta], bins=len(u) / 2, n=2)
 
-    figure = pyplot.figure()
-    axes = figure.add_subplot(111)
-    plot = axes.pcolor(bins, nu/1e6, PS.T)
-    colorbar(plot)
+    pyplot.imshow(variance_cube[:,10,:].T)
     pyplot.show()
 
+    return
+
+
+def calculate_beam_2DPS():
+    u = numpy.logspace(0, 2.1, 100)
+    nu = numpy.linspace(135, 165, 100) * 1e6
+
+    window_function = blackman_harris_taper(nu)
+    taper1, taper2 = numpy.meshgrid(window_function, window_function)
+
+    dftmatrix, eta = dft_matrix(nu)
+
+    variance = numpy.zeros((len(u), len(nu)))
+
+    #figure = pyplot.figure(figsize=(23,4))
+
+
+    for i in range(len(u)):
+        nu_cov = beam_covariance(u[i], 0, nu) + sky_covariance(u[i], 0, nu)
+        tapered_cov = nu_cov * taper1 * taper2
+        eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
+        variance[i, :] = numpy.diag(numpy.real(eta_cov))
+
+
+        #axes_label = r"$\nu$ [MHz]"
+        #axes = figure.add_subplot(1, 4, i+1)
+        #plot = axes.pcolor(eta,eta, numpy.real(eta_cov))
+        #if i == 0:
+            #axes.set_ylabel((axes_label))
+        #cax = colorbar(plot)
+        #axes.set_xlabel(axes_label)
+    plot_PS(u, eta[:int(len(eta) / 2)], variance[:, :int(len(eta) / 2)])
+    #pyplot.show()
     return
 
 
@@ -174,19 +195,20 @@ def calculate_sky_PS():
 
     return
 
+
+
 def plot_PS(u_bins, eta_bins, PS, cosmological= False):
     figure = pyplot.figure()
     axes = figure.add_subplot(111)
 
     if cosmological:
+        pass
+    else:
+        pass
 
-
-
-    psplot = axes.pcolor(u_bins, eta_bins, PS.T,
-                         norm=colors.LogNorm(vmin=numpy.nanmin(PS),
-                                             vmax=numpy.nanmax(PS)))
-
-
+    symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(PS))
+    psplot = axes.pcolor(u_bins, eta_bins, PS.T, norm=colors.SymLogNorm(linthresh=10**-5, linscale=symlog_scale,
+                                                              vmin=symlog_min, vmax=symlog_max))
 
 
     cax = colorbar(psplot)
@@ -200,7 +222,7 @@ def plot_PS(u_bins, eta_bins, PS, cosmological= False):
     axes.set_xlabel(r"|u|")
     axes.set_ylabel(r"$\eta$ [MHz$^{-1}$]")
     cax.set_label(r"Variance [Jy$^2$]")
-    pyplot.show()
+    #pyplot.show()
     return
 
 def test_dft_on_signal():
@@ -237,4 +259,5 @@ def test_dft_on_signal():
 
 if __name__ == "__main__":
     calculate_sky_PS()
-
+    calculate_beam_2DPS()
+    pyplot.show()
