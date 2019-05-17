@@ -41,6 +41,7 @@ def symlog_bounds(data):
 
     return lower_bound, upper_bound, threshold, scale
 
+
 def lm_to_theta_phi(ll, mm):
     theta = numpy.arcsin(numpy.sqrt(ll ** 2. + mm ** 2.))
     phi = numpy.arctan(mm / ll)
@@ -51,18 +52,39 @@ def lm_to_theta_phi(ll, mm):
     return theta, phi
 
 
+def eta_to_k_par(eta, frequency, H0 = 70.4, nu_emission = 1.42e9):
+    z = redshift(frequency)
+    hubble_distance = c/H0 *1e-3 #[Mpc]
+
+    E = E_function(z)
+    k_par = eta*2*numpy.pi*frequency*E/(hubble_distance*(1+z)**2)
+
+    return k_par
+
 def u_to_k_perp(u, frequency):
     distance = comoving_distance(frequency)
+    print(distance)
     k_perp = 2*numpy.pi*u/distance
+
     return k_perp
 
-def comoving_distance(nu_observed, H0 = 70.4, Omega_M = 0.27, Omega_k = 0, Omega_Lambda = 0.73):
 
-    hubble_distance = c/H0  *1e-3*1e6*parsec
+def comoving_distance(nu_observed, H0 = 70.4):
 
+    hubble_distance = c/H0  *1e-3
     z = redshift(nu_observed)
-    d = 1
+    z_integration = numpy.linspace(0,z,100)
+    E = E_function(z_integration)
+
+    d = hubble_distance*numpy.trapz(1/E, z_integration)
+
     return d
+
+
+def E_function(z, Omega_M = 0.27, Omega_k = 0, Omega_Lambda = 0.73 ):
+    E = numpy.sqrt(Omega_M*(1+z)**3 + Omega_k*(1+z)**2 + Omega_Lambda)
+
+    return E
 
 def redshift(nu_observed, nu_emission = 1.42e9):
 
