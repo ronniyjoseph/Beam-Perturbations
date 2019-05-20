@@ -95,7 +95,7 @@ def redshift(nu_observed, nu_emission = 1.42e9):
 
     return z
 
-def visibility_to_temperature(measurements_jansky, nu_emission = 1.4, H0 = 70.4):
+def from_jansky_to_milikelvin(measurements_jansky, nu_emission = 1.4, H0 = 70.4):
     #following morales & wyithe 2010
     G = H0
     return
