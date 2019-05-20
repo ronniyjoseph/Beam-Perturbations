@@ -5,9 +5,9 @@ from radiotelescope import beam_width
 from matplotlib import pyplot
 
 from generaltools import colorbar
-from generaltools import eta_to_k_par
-from generaltools import u_to_k_perp
-
+from generaltools import from_eta_to_k_par
+from generaltools import from_u_to_k_perp
+from generaltools import from_jansky_to_milikelvin
 import numpy
 import powerbox
 
@@ -186,7 +186,7 @@ def calculate_beam_2DPS():
 
 def calculate_sky_PS():
     u = numpy.logspace(-1, 2.5, 200)
-    nu = numpy.linspace(135, 165, 15000)*1e6
+    nu = numpy.linspace(135, 165, 200)*1e6
 
     window_function = blackman_harris_taper(nu)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
@@ -222,16 +222,17 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False):
 
     if cosmological:
         central_frequency = nu[int(len(nu)/2)]
-        x_values = u_to_k_perp(u_bins, central_frequency)
-        y_values = eta_to_k_par(eta_bins, central_frequency)
-        z_values = PS
+        x_values = from_u_to_k_perp(u_bins, central_frequency)
+        y_values = from_eta_to_k_par(eta_bins, central_frequency)
+        z_values = from_jansky_to_milikelvin(PS, nu)
 
         x_label = r"$k_{\perp}$"
         y_label = r"$k_{\parallel}$"
-        z_label = r"Variance [Jy$^2$]"
+        z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
+
 
         axes.set_xlim(5e-3, 2e-1)
-        axes.set_ylim(1e-3, 1)
+        axes.set_ylim(9e-3, 1)
     else:
         x_values = u_bins
         y_values = eta_bins
@@ -239,14 +240,19 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False):
 
         x_label = r"|u|"
         y_label = r"$\eta$ [MHz$^{-1}$]"
-        z_label = r"Variance [Jy$^2$]"
+        z_label = r"Variance [Jy$^2$ Hz$^2$]"
 
         axes.set_xlim(xmin = 1)
         axes.set_ylim(eta_bins[1], eta_bins.max())
+    if PS.min() < 0:
+        symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
+        norm = colors.SymLogNorm(linthresh=10**-5, linscale=symlog_scale, vmin=symlog_min, vmax=symlog_max)
+    else:
+        symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
+        norm = colors.LogNorm(vmin=symlog_min, vmax=symlog_max)
 
-    symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
-    psplot = axes.pcolor(x_values, y_values, z_values.T, norm=colors.SymLogNorm(linthresh=10**-5, linscale=symlog_scale,
-                                                              vmin=symlog_min, vmax=symlog_max))
+
+    psplot = axes.pcolor(x_values, y_values, z_values.T, norm=norm)
 
     cax = colorbar(psplot)
 
@@ -298,4 +304,6 @@ def test_dft_on_signal():
 if __name__ == "__main__":
     calculate_sky_PS()
     #calculate_beam_2DPS()
+    #nu = numpy.linspace(135, 165, 200)*1e6
+    #print(from_jansky_to_milikelvin(1, nu))
     pyplot.show()
