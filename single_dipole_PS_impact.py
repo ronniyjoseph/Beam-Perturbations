@@ -17,7 +17,7 @@ from RadioTelescope import antenna_gain_creator
 from RadioTelescope import baseline_converter
 from RadioTelescope import antenna_table_loader
 from skymodel import SkyRealisation
-from quick_simulation_visibility_covariance import lm_to_theta_phi
+from quick_simulation_visibility_covariance import from_lm_to_theta_phi
 from quick_simulation_visibility_covariance import mwa_tile_beam
 from scipy.constants import c
 

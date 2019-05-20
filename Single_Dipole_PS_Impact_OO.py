@@ -10,8 +10,7 @@ import multiprocessing
 
 import powerbox
 
-from generaltools import lm_to_theta_phi
-from skymodel import SkyRealisation
+from generaltools import from_lm_to_theta_phifrom skymodel import SkyRealisation
 
 from radiotelescope import RadioTelescope
 from radiotelescope import ideal_gaussian_beam
