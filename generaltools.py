@@ -42,7 +42,7 @@ def symlog_bounds(data):
     return lower_bound, upper_bound, threshold, scale
 
 
-def lm_to_theta_phi(ll, mm):
+def from_lm_to_theta_phi(ll, mm):
     theta = numpy.arcsin(numpy.sqrt(ll ** 2. + mm ** 2.))
     phi = numpy.arctan(mm / ll)
 
@@ -52,16 +52,19 @@ def lm_to_theta_phi(ll, mm):
     return theta, phi
 
 
-def eta_to_k_par(eta, frequency, H0 = 70.4, nu_emission = 1.42e9):
-    z = redshift(frequency)
+def from_eta_to_k_par(eta, nu_observed, H0 = 70.4, nu_emission = 1.42e9):
+    # following Morales 2004
+
+    z = redshift(nu_observed, nu_emission)
     hubble_distance = c/H0 *1e-3 #[Mpc]
 
     E = E_function(z)
-    k_par = eta*2*numpy.pi*frequency*E/(hubble_distance*(1+z)**2)
+    k_par = eta*2*numpy.pi*nu_emission*E/(hubble_distance*(1+z)**2)
 
     return k_par
 
-def u_to_k_perp(u, frequency):
+def from_u_to_k_perp(u, frequency):
+    #following Morales 2004
     distance = comoving_distance(frequency)
     print(distance)
     k_perp = 2*numpy.pi*u/distance
@@ -91,3 +94,8 @@ def redshift(nu_observed, nu_emission = 1.42e9):
     z = (nu_emission - nu_observed)/nu_observed
 
     return z
+
+def visibility_to_temperature(measurements_jansky, nu_emission = 1.4, H0 = 70.4):
+    #following morales & wyithe 2010
+    G = H0
+    return
