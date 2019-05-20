@@ -1,6 +1,7 @@
 import numpy
 from scipy.constants import c
 from scipy.constants import parsec
+from scipy.constants import Boltzmann
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
@@ -74,12 +75,13 @@ def from_u_to_k_perp(u, frequency):
 
 def comoving_distance(nu_observed, H0 = 70.4):
 
-    hubble_distance = c/H0  *1e-3
+    hubble_distance = c/H0 *1e-3 #Mpc
     z = redshift(nu_observed)
     z_integration = numpy.linspace(0,z,100)
     E = E_function(z_integration)
 
     d = hubble_distance*numpy.trapz(1/E, z_integration)
+
 
     return d
 
@@ -95,7 +97,19 @@ def redshift(nu_observed, nu_emission = 1.42e9):
 
     return z
 
-def from_jansky_to_milikelvin(measurements_jansky, nu_emission = 1.4, H0 = 70.4):
+def from_jansky_to_milikelvin(measurements_jansky, frequencies, nu_emission = 1.42e9, H0 = 70.4):
     #following morales & wyithe 2010
-    G = H0
-    return
+    central_frequency = int(len(frequencies)/2)
+    bandwidth = frequencies.max() - frequencies.min()
+    nu_max = frequencies.max()
+    A_eff = 20
+
+    z = redshift(nu_observed=central_frequency, nu_emission=nu_emission)
+    E = E_function(z)
+    G = H0*nu_emission*E/(c*(1+z)**2)
+    D = comoving_distance(central_frequency)
+
+    conversion = A_eff**2*D**2*nu_max**2/(c**2*bandwidth*G*2*Boltzmann*1e26)
+    temperature = measurements_jansky*conversion
+
+    return temperature
