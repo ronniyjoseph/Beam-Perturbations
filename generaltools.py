@@ -24,7 +24,7 @@ def symlog_bounds(data):
         else:
             lower_bound = numpy.nanmin(data[indices])
     else:
-        lower_bound = numpy.abs(data_min)/data_min*numpy.abs(data_min)
+        lower_bound = data_min
 
     if data_max == 0:
         indices = numpy.where(data < 0)[0]
@@ -33,12 +33,14 @@ def symlog_bounds(data):
         else:
             upper_bound = numpy.nanmax(data[indices])
     else:
-        upper_bound = numpy.abs(data_max)/data_max*numpy.abs(data_max)
+        upper_bound = data_max
 
     ### Figure out what the lintresh is (has to be linear)
     threshold = 1e-5# 1e-4*min(numpy.abs(lower_bound), numpy.abs(upper_bound))
     #### Figure out the linscale parameter (has to be in log)
     scale = numpy.log10(upper_bound - lower_bound)/6
+    print(lower_bound, upper_bound, scale)
+    print(data.min(), data.max(), scale)
 
     return lower_bound, upper_bound, threshold, scale
 
@@ -109,7 +111,7 @@ def from_jansky_to_milikelvin(measurements_jansky, frequencies, nu_emission = 1.
 
     y = bandwidth/G
     x = numpy.sqrt(c**2/(A_eff*central_frequency**2))*D
-    conversion = (A_eff/(2*Boltzmann))**2*D**4/G**2/(x**2*y)*1e6
+    conversion = (A_eff/(2*Boltzmann))**2*D**4/G**2/(x**2*y)*1e6*1e-52
     temperature = measurements_jansky*conversion
 
     return temperature
