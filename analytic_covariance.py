@@ -93,7 +93,7 @@ def beam_covariance(u, v, nu, dx =1):
         numpy.sum(numpy.exp(-2*numpy.pi**2*sigma_D2*((u * nn2 / nu[0] - xx / c * nn2) ** 2 +
                                                                   (v * nn2 / nu[0] - yy / c * nn2) ** 2)), axis=-1)
 
-    return  (A + B + C + D + E)
+    return A #(A + B + C + D + E)
 
 
 def moment_returner(n_order, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, S_low=400e-3, S_mid=1, S_high=5.):
@@ -195,7 +195,7 @@ def calculate_sky_PS():
 
     variance = numpy.zeros((len(u), len(nu)))
     #figure = pyplot.figure(figsize=(23,4))
-
+    #axes = figure.add_subplot((111))
     for i in range(len(u)):
         nu_cov = sky_covariance(u[i], 0, nu)
         tapered_cov = nu_cov * taper1 * taper2
@@ -209,6 +209,7 @@ def calculate_sky_PS():
         #    axes.set_ylabel((axes_label))
         #cax = colorbar(plot)
         #axes.set_xlabel(axes_label)
+
 
     plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True)
 
@@ -226,8 +227,8 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False):
         y_values = from_eta_to_k_par(eta_bins, central_frequency)
         z_values = from_jansky_to_milikelvin(PS, nu)
 
-        x_label = r"$k_{\perp}$"
-        y_label = r"$k_{\parallel}$"
+        x_label = r"$k_{\perp}$ [Mpc$^{-1}$]"
+        y_label = r"$k_{\parallel}$ [Mpc$^{-1}$]"
         z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
 
 
@@ -302,8 +303,8 @@ def test_dft_on_signal():
 
 
 if __name__ == "__main__":
-    calculate_sky_PS()
-    #calculate_beam_2DPS()
+    #calculate_sky_PS()
+    calculate_beam_2DPS()
     #nu = numpy.linspace(135, 165, 200)*1e6
     #print(from_jansky_to_milikelvin(1, nu))
     pyplot.show()
