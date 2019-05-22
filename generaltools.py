@@ -67,7 +67,6 @@ def from_eta_to_k_par(eta, nu_observed, H0 = 70.4, nu_emission = 1.42e9):
 def from_u_to_k_perp(u, frequency):
     #following Morales 2004
     distance = comoving_distance(frequency)
-    print(distance)
     k_perp = 2*numpy.pi*u/distance
 
     return k_perp
@@ -99,17 +98,18 @@ def redshift(nu_observed, nu_emission = 1.42e9):
 
 def from_jansky_to_milikelvin(measurements_jansky, frequencies, nu_emission = 1.42e9, H0 = 70.4):
     #following morales & wyithe 2010
-    central_frequency = int(len(frequencies)/2)
+    central_frequency = frequencies[int(len(frequencies)/2)]
     bandwidth = frequencies.max() - frequencies.min()
-    nu_max = frequencies.max()
     A_eff = 20
 
     z = redshift(nu_observed=central_frequency, nu_emission=nu_emission)
     E = E_function(z)
-    G = H0*nu_emission*E/(c*(1+z)**2)
+    G = H0*nu_emission*E/(c*(1+z)**2)*1e-3
     D = comoving_distance(central_frequency)
 
-    conversion = A_eff**2*D**2*nu_max**2/(c**2*bandwidth*G*2*Boltzmann*1e26)
+    y = bandwidth/G
+    x = numpy.sqrt(c**2/(A_eff*central_frequency**2))*D
+    conversion = (A_eff/(2*Boltzmann))**2*D**4/G**2/(x**2*y)*1e6
     temperature = measurements_jansky*conversion
 
     return temperature
