@@ -3,7 +3,7 @@ from scipy.constants import c
 from scipy.constants import parsec
 from scipy.constants import Boltzmann
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
+from radiotelescope import beam_width
 
 def colorbar(mappable):
     ax = mappable.axes
@@ -22,6 +22,7 @@ def symlog_bounds(data):
         if len(indices) == 0:
             lower_bound = -0.1
         else:
+            print(numpy.nanmin(data[indices]))
             lower_bound = numpy.nanmin(data[indices])
     else:
         lower_bound = data_min
@@ -36,11 +37,12 @@ def symlog_bounds(data):
         upper_bound = data_max
 
     ### Figure out what the lintresh is (has to be linear)
-    threshold = 1e-5# 1e-4*min(numpy.abs(lower_bound), numpy.abs(upper_bound))
+    number_orders = int(numpy.ceil(numpy.log10(numpy.abs(upper_bound)) + numpy.log10(numpy.abs(upper_bound))))
+    print(number_orders)
+    short_end = min(numpy.abs(lower_bound), numpy.abs(upper_bound))
+    threshold = 10**(2.5*numpy.log10(short_end)/(number_orders/10))
     #### Figure out the linscale parameter (has to be in log)
     scale = numpy.log10(upper_bound - lower_bound)/6
-    print(lower_bound, upper_bound, scale)
-    print(data.min(), data.max(), scale)
 
     return lower_bound, upper_bound, threshold, scale
 
@@ -68,17 +70,22 @@ def from_eta_to_k_par(eta, nu_observed, H0 = 70.4, nu_emission = 1.42e9):
 
 def from_u_to_k_perp(u, frequency):
     #following Morales 2004
-    distance = comoving_distance(frequency)
+    distance = comoving_distance(nu_min = frequency)
     k_perp = 2*numpy.pi*u/distance
 
     return k_perp
 
 
-def comoving_distance(nu_observed, H0 = 70.4):
+def comoving_distance(nu_min = None, nu_max = None, H0 = 70.4):
 
     hubble_distance = c/H0 *1e-3 #Mpc
-    z = redshift(nu_observed)
-    z_integration = numpy.linspace(0,z,100)
+    if nu_max is not None:
+        z_min = redshift(nu_max)
+    else:
+        z_min = 0
+
+    z_max = redshift(nu_min)
+    z_integration = numpy.linspace(z_min, z_max, 100)
     E = E_function(z_integration)
 
     d = hubble_distance*numpy.trapz(1/E, z_integration)
@@ -102,16 +109,19 @@ def from_jansky_to_milikelvin(measurements_jansky, frequencies, nu_emission = 1.
     #following morales & wyithe 2010
     central_frequency = frequencies[int(len(frequencies)/2)]
     bandwidth = frequencies.max() - frequencies.min()
-    A_eff = 20
 
-    z = redshift(nu_observed=central_frequency, nu_emission=nu_emission)
-    E = E_function(z)
-    G = H0*nu_emission*E/(c*(1+z)**2)*1e-3
-    D = comoving_distance(central_frequency)
+    z_central = redshift(nu_observed=central_frequency, nu_emission=nu_emission)
+    E = E_function(z_central)
+    G = H0*nu_emission*E/(c*(1 + z_central)**2)*1e-3
+    x = comoving_distance(nu_min= central_frequency)
+    y = comoving_distance(nu_min = frequencies.min(), nu_max=frequencies.max())
+    beamwidth = beam_width(central_frequency)
 
-    y = bandwidth/G
-    x = numpy.sqrt(c**2/(A_eff*central_frequency**2))*D
-    conversion = (A_eff/(2*Boltzmann))**2*D**4/G**2/(x**2*y)*1e6*1e-52
+    volume = beamwidth**2*x**2*y
+    A_eff = (c/central_frequency)**2/beamwidth
+
+    conversion = (A_eff/(2*Boltzmann*1e26))**2*x**4/G**2/(volume)*1e6
     temperature = measurements_jansky*conversion
 
+    print("Conversion", conversion)
     return temperature
