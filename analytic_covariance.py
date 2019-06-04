@@ -387,7 +387,7 @@ def test_dft_on_signal():
 
 if __name__ == "__main__":
     u = numpy.logspace(-1, 2.5, 100)
-    nu = numpy.linspace(135, 165, 200)*1e6
+    nu = numpy.linspace(140, 160, 500)*1e6
 
     output_folder = "/home/ronniyjoseph/Sync/PhD/Projects/hybrid_calibration/Plots/Analytic_Covariance/"
 
