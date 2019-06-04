@@ -227,6 +227,7 @@ def select_baselines(baseline_coordinates, baseline_selection_indices):
         selected_baseline_coordinates = baseline_coordinates[baseline_selection_indices, ...]
     return selected_baseline_coordinates
 
+
 def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, weights=1, dipole_type='cross',
                   gaussian_width=30 / 180 * numpy.pi):
 
