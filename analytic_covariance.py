@@ -54,8 +54,8 @@ def beam_covariance(u, v, nu, dx =1):
     mu_2_m = moment_returner(2, S_low = 1)
 
 
-    print("residual", mu_2_r)
-    print("model", mu_2_m)
+    #print("residual", mu_2_r)
+    #print("model", mu_2_m)
 
     width_1_tile = numpy.sqrt(2)*beam_width(nn1)
     width_2_tile = numpy.sqrt(2)*beam_width(nn2)
