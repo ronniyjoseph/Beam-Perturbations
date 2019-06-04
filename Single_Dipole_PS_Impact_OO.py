@@ -10,7 +10,8 @@ import multiprocessing
 
 import powerbox
 
-from generaltools import from_lm_to_theta_phifrom skymodel import SkyRealisation
+from generaltools import from_lm_to_theta_phi
+from skymodel import SkyRealisation
 
 from radiotelescope import RadioTelescope
 from radiotelescope import ideal_gaussian_beam
@@ -157,7 +158,7 @@ def get_observation_single_channel(source_population, baseline_table, min_l, fau
     # Create Beam
     #############################################################################
     if beam_type == "MWA":
-        tt, pp, = lm_to_theta_phi(ll, mm)
+        tt, pp, = from_lm_to_theta_phi(ll, mm)
         ideal_beam = ideal_mwa_beam_loader(tt, pp, frequency_range[frequency_index], load= False)
         broken_beam = broken_mwa_beam_loader(tt, pp, frequency_range[frequency_index], faulty_dipole, load= False)
 
@@ -230,7 +231,7 @@ def get_obsersvations_all_channels(source_population = None, baseline_table = No
     # Create Beam
     #############################################################################
     if beam_type == "MWA":
-        tt, pp, = lm_to_theta_phi(ll, mm)
+        tt, pp, = from_lm_to_theta_phi(ll, mm)
         antenna_response1 = ideal_mwa_beam_loader(tt, pp, ff)
         if faulty_dipole is None:
             antenna_response2 = antenna_response1.copy()
