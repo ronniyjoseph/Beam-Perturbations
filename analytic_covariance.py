@@ -14,7 +14,7 @@ import powerbox
 import matplotlib.colors as colors
 
 
-def sky_covariance(u, v, nu):
+def sky_covariance(u, v, nu, S_low = 0.1, S_mid = 1, S_high = 1):
     gamma = 0.0
     nn1, nn2 = numpy.meshgrid(nu, nu)
 
@@ -22,7 +22,7 @@ def sky_covariance(u, v, nu):
     width_2_tile = beam_width(nn2)
 
     Sigma = width_1_tile**2*width_2_tile**2/(width_1_tile**2 + width_2_tile**2)
-    mu_2_r = moment_returner(2, S_low=0.1, S_high = 1)
+    mu_2_r = moment_returner(2, S_low=S_low, S_mid=S_mid, S_high = S_high)
     sky_covariance = 2*numpy.pi*(nn1*nn2/numpy.min(nu)**2)**-gamma * mu_2_r *Sigma *numpy.exp(-2*numpy.pi**2*(u**2 + v**2)*(nn1 - nn2)**2/numpy.min(nu)**2*Sigma)
 
     #pyplot.figure()
@@ -219,7 +219,7 @@ def calculate_beam_2DPS(u, nu, save = False, plot_name = "beam_2D_ps.pdf"):
     return
 
 
-def calculate_total_2DPS(u, nu, save = False, plot_name = "total_ps.pdf"):
+def calculate_total_2DPS(u, nu, save = False, plot = True, plot_name = "total_ps.pdf"):
 
 
 
@@ -245,10 +245,10 @@ def calculate_total_2DPS(u, nu, save = False, plot_name = "total_ps.pdf"):
         #cax = colorbar(plot)
         #axes.set_xlabel(axes_label)
 
-
-    plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True, title="Total", save = save,
+    if plot:
+        plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True, title="Total", save = save,
             save_name = plot_name)
-    return
+    return eta[:int(len(eta)/2)], variance[:, :int(len(eta)/2)]
 
 
 
@@ -303,7 +303,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, title = None, save = 
         z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
 
 
-        axes.set_xlim(5e-5, 2e-1)
+        axes.set_xlim(5e-3, 2e-1)
         axes.set_ylim(9e-3, 1)
     else:
         x_values = u_bins
