@@ -1,9 +1,12 @@
 import numpy
+import powerbox
+from scipy import interpolate
 from scipy.constants import c
 from scipy.constants import parsec
 from scipy.constants import Boltzmann
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from radiotelescope import beam_width
+
 
 def colorbar(mappable):
     ax = mappable.axes
@@ -12,6 +15,7 @@ def colorbar(mappable):
     cax = divider.append_axes("right", size="5%", pad=0.05)
 
     return fig.colorbar(mappable, cax=cax)
+
 
 def symlog_bounds(data):
     data_min = numpy.nanmin(data)
@@ -127,3 +131,41 @@ def from_jansky_to_milikelvin(measurements_jansky, frequencies, nu_emission = 1.
 
     print("Conversion", conversion)
     return temperature
+
+
+def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibility_grid, uv_grid):
+
+    u_bin_centers = uv_grid[0]
+    v_bin_centers = uv_grid[1]
+
+    baseline_coordinates = numpy.array([baseline_table_object.u(frequency), baseline_table_object.v(frequency)])
+    # now we have the bin edges we can start binning our baseline table
+    # Create an empty array to store our baseline measurements in
+    visibility_data = visibility_grid
+
+    real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data))
+    imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data))
+
+    visibilities = real_component(baseline_coordinates.T) + 1j*imag_component(baseline_coordinates.T)
+
+    return visibilities
+
+
+def fourier_transform(image, padding_factor=3, L=2):
+    visibility_grid, uv_coordinates = powerbox.dft.fft(numpy.fft.ifftshift(numpy.pad(image,
+                                                                                     padding_factor * image.shape[0],
+                                                                                     mode="constant"), axes=(0, 1)),
+                                                       L=L * (2 * padding_factor + 1), axes=(0, 1))
+
+    return visibility_grid, uv_coordinates
+
+
+def visibility_extractor(baseline_table_object, sky_image, frequency, antenna1_response,
+                            antenna2_response, padding_factor = 3):
+
+    apparent_sky = sky_image * antenna1_response * numpy.conj(antenna2_response)
+    visibility_grid, uv_coordinates = fourier_transform((apparent_sky), L = 2)
+    measured_visibilities = uv_list_to_baseline_measurements(baseline_table_object, frequency, visibility_grid,
+                                                             uv_coordinates)
+
+    return measured_visibilities
