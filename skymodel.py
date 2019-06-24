@@ -38,9 +38,12 @@ class SkyRealisation:
         source_l = self.l_coordinates
         source_m = self.m_coordinates
 
+        if type(frequency_channels) == numpy.ndarray:
+            n_frequencies = len(frequency_channels)
+        else:
+            n_frequencies = 1
 
         if baseline_table is not None:
-            n_frequencies = len(frequency_channels)
             #Find longest baseline to determine sky_image sampling, pick highest frequency for longest baseline
             max_u = numpy.max(numpy.abs(baseline_table.u(frequency_channels)))
             max_v = numpy.max(numpy.abs(baseline_table.v(frequency_channels)))
@@ -49,7 +52,6 @@ class SkyRealisation:
             min_l = 1./(2*max_b)
             delta_l = min_l/oversampling
         elif radiotelescope is not None:
-            n_frequencies = 1
             max_u = numpy.max(numpy.abs(radiotelescope.baseline_table.u(frequency_channels)))
             max_v = numpy.max(numpy.abs(radiotelescope.baseline_table.v(frequency_channels)))
             max_b = max(max_u, max_v)
