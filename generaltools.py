@@ -94,10 +94,12 @@ def comoving_distance(nu_min = None, nu_max = None, H0 = 70.4):
     return d
 
 
+
 def E_function(z, Omega_M = 0.27, Omega_k = 0, Omega_Lambda = 0.73 ):
     E = numpy.sqrt(Omega_M*(1+z)**3 + Omega_k*(1+z)**2 + Omega_Lambda)
 
     return E
+
 
 def redshift(nu_observed, nu_emission = 1.42e9):
 

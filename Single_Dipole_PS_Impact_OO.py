@@ -23,13 +23,14 @@ from powerspectrum import get_power_spectrum
 import os
 import argparse
 
+
 def main(beam_type = 'gaussian', faulty_dipole = 1, faulty_tile = 36, n_channels = 100, calibrate = True, verbose=True):
     print(beam_type, faulty_dipole, faulty_dipole, n_channels, calibrate, verbose)
     output_path = "/data/rjoseph/Hybrid_Calibration/Tile_Pertubation/Simulation_Output/"
-    prefix = ""
+    prefix = "TEST"
     suffix = ""
 
-    path = "./hex_pos.txt"
+    path = "Data/MWA_All_Coordinates_Cath.txt"
     frequency_range = numpy.linspace(135, 165, n_channels) * 1e6
     #faulty_dipole = 1 #6
     #faulty_tile = 36 #1036, 81, 36
@@ -79,6 +80,7 @@ def main(beam_type = 'gaussian', faulty_dipole = 1, faulty_tile = 36, n_channels
 
     get_power_spectrum(frequency_range, telescope, ideal_measured_visibilities, broken_measured_visibilities,
                     faulty_tile, output_path + project_name + "/" + plot_file_name, verbose)
+
     return
 
 
@@ -219,13 +221,21 @@ def get_observations_memory(source_population = None, baseline_table = None, fre
 
     return ideal_observations, broken_observations
 
-def get_obsersvations_all_channels(source_population = None, baseline_table = None, frequency_range = None, faulty_dipole=None,
-                            faulty_tile = None, beam_type = 'gaussian', calibrate=False, oversampling=2,
-                            padding_factor = 3):
 
-    sky_cube, l_coordinates = source_population.create_sky_image(baseline_table=baseline_table,
+def get_obsersvations_all_channels(source_population = None, baseline_table = None, frequency_range = None, faulty_dipole=None,
+                            faulty_tile = None, beam_type = 'gaussian', calibrate=False, oversampling=2):
+
+    #Determine maximum resolution
+    max_frequency = frequency_range[-1]
+    max_u = numpy.max(numpy.abs(baseline_table.u(max_frequency)))
+    max_v = numpy.max(numpy.abs(baseline_table.v(max_frequency)))
+    max_b = max(max_u, max_v)
+    # sky_resolutions
+    min_l = 1. / (2*max_b)*1/oversampling
+
+    sky_cube, l_coordinates = source_population.create_sky_image(resolution=min_l,
                                                                  frequency_channels=frequency_range,
-                                                                 oversampling=oversampling)
+                                                                 oversampling=1)
     ll, mm, ff = numpy.meshgrid(l_coordinates, l_coordinates, frequency_range)
 
     # Create Beam
@@ -254,18 +264,18 @@ def get_obsersvations_all_channels(source_population = None, baseline_table = No
     ##Determine the indices of the broken baselines and calculcate the visibility measurements
     ##################################################################
 
-    apparent_sky = sky_cube * antenna_response1 * numpy.conj(antenna_response2)
-    pad_size = padding_factor * apparent_sky.shape[0]
+    #apparent_sky = sky_cube * antenna_response1 * numpy.conj(antenna_response2)
+    #pad_size = padding_factor * apparent_sky.shape[0]
 
-    padded_shifted_sky = numpy.fft.ifftshift(numpy.pad(apparent_sky, ((pad_size, pad_size), (pad_size, pad_size),
-                                                                      (0, 0)), mode="constant"), axes=(0, 1))
-    visibility_grid, uv_coordinates = powerbox.dft.fft(padded_shifted_sky, L=2 * (2 * padding_factor + 1), axes=(0, 1))
+    #padded_shifted_sky = numpy.fft.ifftshift(numpy.pad(apparent_sky, ((pad_size, pad_size), (pad_size, pad_size),
+    #                                                                  (0, 0)), mode="constant"), axes=(0, 1))
+    #visibility_grid, uv_coordinates = powerbox.dft.fft(padded_shifted_sky, L=2 * (2 * padding_factor + 1), axes=(0, 1))
 
     observations = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range)), dtype=complex)
 
     for frequency_index in range(len(frequency_range)):
-        observations[..., frequency_index] = uv_list_to_baseline_measurements(baseline_table, frequency_range[frequency_index],
-                                                        visibility_grid[..., frequency_index], uv_coordinates)
+        observations[..., frequency_index] = visibility_extractor(baseline_table, sky_cube, frequency_range,
+                                                                  antenna_response1, antenna_response2)
 
     return observations*correction
 

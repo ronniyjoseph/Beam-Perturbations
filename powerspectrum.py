@@ -2,7 +2,6 @@ import numpy
 import powerbox
 
 import matplotlib
-matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors as colors
 

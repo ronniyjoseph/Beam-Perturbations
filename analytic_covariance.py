@@ -285,7 +285,7 @@ def calculate_sky_PS(u, nu, title = "Sky", save = False, plot_name = "sky_ps.pdf
 
 
 
-def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, title = None, save = False, save_name = "plot.pdf"):
+def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title = None, save = False, save_name = "plot.pdf"):
     axes_label_font = 20
     tickfontsize = 15
 
@@ -296,7 +296,10 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, title = None, save = 
         central_frequency = nu[int(len(nu)/2)]
         x_values = from_u_to_k_perp(u_bins, central_frequency)
         y_values = from_eta_to_k_par(eta_bins, central_frequency)
-        z_values = from_jansky_to_milikelvin(PS, nu)
+        if ratio:
+            z_values = PS
+        else:
+            z_values = from_jansky_to_milikelvin(PS, nu)
 
         x_label = r"$k_{\perp}$ [Mpc$^{-1}$]"
         y_label = r"$k_{\parallel}$ [Mpc$^{-1}$]"
@@ -318,19 +321,20 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, title = None, save = 
         axes.set_ylim(eta_bins[1], eta_bins.max())
 
     if PS.min() < 0:
+        print("Log Norm scale")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
-        norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=symlog_min, vmax=symlog_max)
+        norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=1e-1, vmax=symlog_max)
         colormap = "coolwarm"
     else:
         print("I am here:")
-        symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
-        norm = colors.LogNorm(vmin=symlog_min, vmax=symlog_max)
+        #symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
+        print(numpy.real(z_values).min(), numpy.real(z_values).max())
+        norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
         colormap = "viridis"
     if title is not None:
         axes.set_title(title)
 
-    print(z_values.min(), z_values.max())
-    print(-numpy.log10(numpy.abs(symlog_min)), numpy.log10(symlog_max), symlog_threshold, symlog_scale)
+
     psplot = axes.pcolor(x_values, y_values, z_values.T, norm=norm, cmap=colormap, rasterized = True)
     cax = colorbar(psplot)
 
@@ -347,7 +351,6 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, title = None, save = 
     if save:
         figure.savefig(save_name)
 
-    #pyplot.show()
 
     return
 

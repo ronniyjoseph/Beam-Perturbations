@@ -1,5 +1,5 @@
 import numpy
-
+import matplotlib
 from matplotlib import pyplot
 from radiotelescope import RadioTelescope
 from radiotelescope import beam_width
@@ -11,6 +11,7 @@ from analytic_covariance import dft_matrix
 from analytic_covariance import blackman_harris_taper
 from analytic_covariance import plot_PS
 from analytic_covariance import calculate_total_2DPS
+
 def gain_variance(nu, path):
     # Step 1 Load the MWA tile positions
     # Step 2 Calculate the baselines
@@ -45,8 +46,7 @@ def gain_variance(nu, path):
             #pyplot.loglog(nu / 1e6, numpy.diag(data_covariance))
             #pyplot.show()
 
-            signal =  2*numpy.pi*sigma**2*average_sky_brightness#*numpy.exp(-2*numpy.pi**2*sigma**2*(u**2 + v**2)*(nu[j]/nu[0])**2)
-            ratios[k, i, :] = signal**2/numpy.diag(data_covariance)
+            signal = 2*numpy.pi*sigma**2*average_sky_brightness
             #print("signal", average_sky_brightness)
             #print("noise", numpy.diag(data_covariance))
 
@@ -67,15 +67,15 @@ def gain_variance(nu, path):
     #pyplot.show()
     #pyplot.plot(eta, numpy.diag(numpy.real(eta_cov)))
     #pyplot.show()
-    alt_variance = numpy.sqrt(numpy.diag(data_covariance)/(2*signal**2*127))
+    alt_variance = numpy.diag(data_covariance)/(2*signal**2*127*(nu/nu[0])**(-2*0.5))
     #pyplot.plot(nu/1e6, alt_variance, label = "analytic")
     #pyplot.legend()
     #pyplot.show()
-    print(variance[0,...] - alt_variance)
+    #print(variance[0,...] - alt_variance)
     return alt_variance
 
 
-def calculate_residual_2DPS(u, nu, save = False, plot_name = "total_ps.pdf", path  =""):
+def calculate_residual_2DPS(u, nu, plot = False, save = False, plot_name = "total_ps.pdf", path  =""):
 
 
 
@@ -87,8 +87,18 @@ def calculate_residual_2DPS(u, nu, save = False, plot_name = "total_ps.pdf", pat
     variance = numpy.zeros((len(u), len(nu)))
     #figure = pyplot.figure(figsize=(23,4))
     #axes = figure.add_subplot((111))
-    gain_covariance = numpy.diag(gain_variance(nu, path))
 
+    ripple = numpy.sin(nu/nu[0]*500 + (nu/nu[0])**2*50)
+    ripple /=ripple
+    pyplot.plot(nu, ripple)
+    #pyplot.show()
+    ripple_cov = numpy.outer(ripple, ripple)
+
+    gainvariance = numpy.sqrt(gain_variance(nu, path))
+    gain_covariance = numpy.outer(gainvariance, gainvariance)*ripple_cov
+
+    pyplot.imshow(gain_covariance)
+    #pyplot.show()
     for i in range(len(u)):
 
 
@@ -96,7 +106,9 @@ def calculate_residual_2DPS(u, nu, save = False, plot_name = "total_ps.pdf", pat
         model_covariance = sky_covariance(u[i], 0, nu, S_low=1, S_high = 5)
 
 
-        nu_cov = gain_covariance*model_covariance + (1 + 2*gain_covariance)*residual_covariance
+        nu_cov = gain_covariance*model_covariance + (1 - 2*gain_covariance)*residual_covariance
+        #diagonal = 2*gainvariance*
+
         tapered_cov = nu_cov * taper1 * taper2
         eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
         variance[i, :] = numpy.diag(numpy.real(eta_cov))
@@ -109,25 +121,27 @@ def calculate_residual_2DPS(u, nu, save = False, plot_name = "total_ps.pdf", pat
         #cax = colorbar(plot)
         #axes.set_xlabel(axes_label)
 
-
-    plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True, title="Total", save = save,
-            save_name = plot_name)
+    if plot:
+        plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True, title="Total", save = save,
+                save_name = plot_name)
     return eta[:int(len(eta)/2)], variance[:, :int(len(eta)/2)]
+
 
 if __name__ == "__main__":
     path = "./Data/MWA_All_Coordinates_Cath.txt"
-    output_folder = "/home/ronniyjoseph/Sync/PhD/Projects/hybrid_calibration/Plots/Analytic_Covariance/"
+    output_folder = "../../Plots/Analytic_Covariance/"
 
 
-    nu = numpy.linspace(145, 155, 100)*1e6
-    u = numpy.logspace(0, 2.5, 100)
+    nu = numpy.linspace(145, 155, 101)*1e6
+    u = numpy.logspace(0.1, 2.5, 100)
     eta, res_PS = calculate_residual_2DPS(u, nu, path=path)
 #    gain_variance(path)
     eta1, original_PS = calculate_total_2DPS(u, nu, plot = False)
 
+
     plot_PS(u, eta, nu, original_PS, cosmological=True, title="Uncalibrated", save = True, save_name = output_folder + "residuals_uncalibrated.pdf")
     plot_PS(u, eta, nu, res_PS, cosmological=True, title="Calibrated", save = True, save_name = output_folder + "residuals_calibrated.pdf")
-    plot_PS(u, eta, nu, res_PS-original_PS, cosmological=True, title="Calibrated-Uncalibrated", save = True, save_name = output_folder + "residuals_difference.pdf")
-    plot_PS(u, eta, nu, res_PS/original_PS, cosmological=True, title="Calibrated/Uncalibrated", save = True, save_name = output_folder + "residuals_ratio.pdf")
+    plot_PS(u, eta, nu, numpy.abs(res_PS-original_PS), cosmological=True, title="Calibrated-Uncalibrated", save = True, save_name = output_folder + "residuals_difference.pdf")
+    plot_PS(u, eta, nu, numpy.abs(res_PS - original_PS)/original_PS, cosmological=True, ratio =True, title="Calibrated -Uncalibrated/Uncalibrated", save=True, save_name=output_folder + "residuals_ratio.pdf")
 
     pyplot.show()
