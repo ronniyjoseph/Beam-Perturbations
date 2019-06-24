@@ -3,6 +3,8 @@ import matplotlib
 from matplotlib import pyplot
 from radiotelescope import RadioTelescope
 from radiotelescope import beam_width
+from radiotelescope import ideal_gaussian_beam
+from generaltools import visibility_extractor
 
 from analytic_covariance import sky_covariance
 from analytic_covariance import beam_covariance
@@ -11,6 +13,7 @@ from analytic_covariance import dft_matrix
 from analytic_covariance import blackman_harris_taper
 from analytic_covariance import plot_PS
 from analytic_covariance import calculate_total_2DPS
+
 
 def gain_variance(nu, path):
     # Step 1 Load the MWA tile positions
@@ -125,6 +128,12 @@ def calculate_residual_2DPS(u, nu, plot = False, save = False, plot_name = "tota
         plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True, title="Total", save = save,
                 save_name = plot_name)
     return eta[:int(len(eta)/2)], variance[:, :int(len(eta)/2)]
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
