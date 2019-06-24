@@ -6,6 +6,8 @@ from scipy.constants import parsec
 from scipy.constants import Boltzmann
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from radiotelescope import beam_width
+import pyfftw
+import sys
 
 
 def colorbar(mappable):
@@ -133,7 +135,7 @@ def from_jansky_to_milikelvin(measurements_jansky, frequencies, nu_emission = 1.
     return temperature
 
 
-def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibility_grid, uv_grid):
+def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibility_grid, uv_grid, interpolation = 'spline'):
 
     u_bin_centers = uv_grid[0]
     v_bin_centers = uv_grid[1]
@@ -142,30 +144,34 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
     # now we have the bin edges we can start binning our baseline table
     # Create an empty array to store our baseline measurements in
     visibility_data = visibility_grid
+    if interpolation == "linear":
+        real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data))
+        imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data))
 
-    real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data))
-    imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data))
+        visibilities = real_component(baseline_coordinates.T) + 1j*imag_component(baseline_coordinates.T)
+    elif interpolation == 'spline':
+        real_component = interpolate.RectBivariateSpline(u_bin_centers, v_bin_centers, numpy.real(visibility_data))
+        imag_component = interpolate.RectBivariateSpline(u_bin_centers, v_bin_centers, numpy.imag(visibility_data))
 
-    visibilities = real_component(baseline_coordinates.T) + 1j*imag_component(baseline_coordinates.T)
+        visibilities = real_component.ev(baseline_coordinates[0, :], baseline_coordinates[1, :]) + \
+                       1j*imag_component.ev(baseline_coordinates[0, :], baseline_coordinates[1, :])
 
     return visibilities
 
 
-def fourier_transform(image, padding_factor=3, L=2):
+def visibility_extractor(baseline_table_object, sky_image, frequency, antenna1_response,
+                            antenna2_response, padding_factor = 3, interpolation = 'spline'):
+
+    image = sky_image * antenna1_response * numpy.conj(antenna2_response)
+
+
     visibility_grid, uv_coordinates = powerbox.dft.fft(numpy.fft.ifftshift(numpy.pad(image,
                                                                                      padding_factor * image.shape[0],
                                                                                      mode="constant"), axes=(0, 1)),
-                                                       L=L * (2 * padding_factor + 1), axes=(0, 1))
+                                                       L=2 * (2 * padding_factor + 1), axes=(0, 1))
 
-    return visibility_grid, uv_coordinates
-
-
-def visibility_extractor(baseline_table_object, sky_image, frequency, antenna1_response,
-                            antenna2_response, padding_factor = 3):
-
-    apparent_sky = sky_image * antenna1_response * numpy.conj(antenna2_response)
-    visibility_grid, uv_coordinates = fourier_transform((apparent_sky), L = 2)
     measured_visibilities = uv_list_to_baseline_measurements(baseline_table_object, frequency, visibility_grid,
-                                                             uv_coordinates)
+                                                             uv_coordinates, interpolation = interpolation)
+
 
     return measured_visibilities
