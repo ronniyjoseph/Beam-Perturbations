@@ -8,7 +8,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from radiotelescope import beam_width
 import pyfftw
 import sys
-
+import time
 
 def colorbar(mappable):
     ax = mappable.axes
@@ -160,18 +160,25 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
 
 
 def visibility_extractor(baseline_table_object, sky_image, frequency, antenna1_response,
-                            antenna2_response, padding_factor = 3, interpolation = 'spline'):
+                            antenna2_response, padding_factor = 3, interpolation = 'spline', verbose_time = True):
 
     image = sky_image * antenna1_response * numpy.conj(antenna2_response)
 
 
+    fft_time0 = time.perf_counter()
     visibility_grid, uv_coordinates = powerbox.dft.fft(numpy.fft.ifftshift(numpy.pad(image,
                                                                                      padding_factor * image.shape[0],
                                                                                      mode="constant"), axes=(0, 1)),
-                                                       L=2 * (2 * padding_factor + 1), axes=(0, 1))
+                                                       L = 2 * (2 * padding_factor + 1), axes=(0, 1))
+    fft_time1 = time.perf_counter()
+    if verbose_time:
+        print(f"\tFFT Time = {fft_time1 - fft_time0}")
 
+    sample_time0 = time.perf_counter()
     measured_visibilities = uv_list_to_baseline_measurements(baseline_table_object, frequency, visibility_grid,
                                                              uv_coordinates, interpolation = interpolation)
 
-
+    sample_time1 = time.perf_counter()
+    if verbose_time:
+        print(f"\tSample time = {sample_time1 - sample_time0}")
     return measured_visibilities
