@@ -19,10 +19,10 @@ class SkyRealisation:
             self.m_coordinates = all_r * numpy.sin(all_phi)
             self.spectral_indices = numpy.zeros_like(self.fluxes) + spectral_indices
         elif sky_type == "point":
-            self.fluxes = fluxes
-            self.l_coordinates = l_coordinates
-            self.m_coordinates = m_coordinates
-            self.spectral_indices = spectral_indices
+            self.fluxes = check_type_convert_to_array(fluxes)
+            self.l_coordinates = check_type_convert_to_array(l_coordinates)
+            self.m_coordinates = check_type_convert_to_array(m_coordinates)
+            self.spectral_indices = check_type_convert_to_array(spectral_indices)
         else:
             raise ValueError(f"sky_type must be 'random' or 'point' NOT {sky_type}")
         return
@@ -154,3 +154,10 @@ def stochastic_sky(seed = 0, k1=4100, gamma1=1.59, k2=4100, \
     return source_fluxes
 
 
+def check_type_convert_to_array(input_values):
+    if type(input_values) != numpy.ndarray:
+        converted = numpy.array([input_values])
+    else:
+        converted = input_values
+
+    return converted
