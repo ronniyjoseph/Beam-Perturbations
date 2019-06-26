@@ -1,5 +1,5 @@
 import numpy
-
+from numba import prange, njit
 
 class SkyRealisation:
     def __init__(self, sky_type, fluxes=0, l_coordinates=0, m_coordinates=0, spectral_indices=0,
@@ -25,6 +25,9 @@ class SkyRealisation:
             self.spectral_indices = check_type_convert_to_array(spectral_indices)
         else:
             raise ValueError(f"sky_type must be 'random' or 'point' NOT {sky_type}")
+
+        self.sky_image = None
+
         return
 
     def create_sky_image(self, frequency_channels, baseline_table = None, radiotelescope = None,
@@ -96,10 +99,18 @@ class SkyRealisation:
         #normalise sky image for pixel size Jy/beam
         normalised_sky_image = sky_image/(2/l_pixel_dimension)**2.
 
+
         return normalised_sky_image, l_coordinates
 
-    def create_visibility_measurements(self):
-        print(2)
+
+    def create_visibility_data(self, mode = 'analytic', interpolation = 'spline',
+                                       padding_factor = 3, parallel = False):
+
+        if mode == 'analytic':
+            pass
+        elif mode == 'numerical':
+            #check whether sky_image has already been created
+            pass
         return
 
 

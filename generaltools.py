@@ -143,15 +143,14 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
     baseline_coordinates = numpy.array([baseline_table_object.u(frequency), baseline_table_object.v(frequency)])
     # now we have the bin edges we can start binning our baseline table
     # Create an empty array to store our baseline measurements in
-    visibility_data = visibility_grid
     if interpolation == "linear":
-        real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_data))
-        imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_data))
+        real_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.real(visibility_grid))
+        imag_component = interpolate.RegularGridInterpolator([u_bin_centers, v_bin_centers], numpy.imag(visibility_grid))
 
         visibilities = real_component(baseline_coordinates.T) + 1j*imag_component(baseline_coordinates.T)
     elif interpolation == 'spline':
-        real_component = interpolate.RectBivariateSpline(u_bin_centers, v_bin_centers, numpy.real(visibility_data))
-        imag_component = interpolate.RectBivariateSpline(u_bin_centers, v_bin_centers, numpy.imag(visibility_data))
+        real_component = interpolate.RectBivariateSpline(u_bin_centers, v_bin_centers, numpy.real(visibility_grid))
+        imag_component = interpolate.RectBivariateSpline(u_bin_centers, v_bin_centers, numpy.imag(visibility_grid))
 
         visibilities = real_component.ev(baseline_coordinates[0, :], baseline_coordinates[1, :]) + \
                        1j*imag_component.ev(baseline_coordinates[0, :], baseline_coordinates[1, :])
