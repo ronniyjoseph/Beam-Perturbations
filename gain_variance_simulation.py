@@ -89,13 +89,14 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
         tile3_plot = figure.add_subplot(133)
 
 
-
-        for i in range(33):
+        for i in range(100):
             FIM = numpy.load(output_path + project_path + "/" + "FIM_realisations/" + f"fim_realisation_{i}.npy")
 
             covariance = numpy.zeros((n_antennas, n_antennas, len(frequency_range)))
             for i in range(len(frequency_range)):
                 covariance[..., i] = numpy.linalg.pinv(FIM[..., i])
+
+
 
 
             tile1_plot.plot(frequency_range / 1e6, covariance[tile1_index, tile1_index, :].flatten(), 'k', alpha=0.1)
@@ -107,6 +108,45 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
         tile3_plot.set_title(tile_name3)
 
         pyplot.show()
+
+
+
+
+
+
+
+
+
+        indices = numpy.array([tile1_index, tile2_index, tile3_index])
+        tile_names = [tile_name1, tile_name2, tile_name3]
+
+        #        figure = pyplot.figure(figsize=(18, 5))
+        #        tile1_plot = figure.add_subplot(131)
+        #        tile2_plot = figure.add_subplot(132)
+        #        tile3_plot = figure.add_subplot(133)
+
+        figure, axes = pyplot.subplots(3, 3, figsize=(18, 5))
+
+        for i in range(33):
+            FIM = numpy.load(output_path + project_path + "/" + "FIM_realisations/" + f"fim_realisation_{i}.npy")
+
+            covariance = numpy.zeros((n_antennas, n_antennas, len(frequency_range)))
+
+            for j in range(len(frequency_range)):
+                covariance[..., i] = numpy.linalg.pinv(FIM[..., i])
+
+            for k in range(3):
+                for l in range(3):
+                    print(covariance[indices[k], indices[l], :].flatten())
+                    axes[k, l].plot(frequency_range / 1e6, covariance[indices[k], indices[l], :].flatten(), 'k',
+                                    alpha=0.1)
+                    axes[k, l].set_title(tile_names[k] + ", " + tile_names[l])
+
+
+
+
+
+
 
     print("Finished")
     return
