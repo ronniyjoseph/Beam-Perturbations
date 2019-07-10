@@ -1,10 +1,13 @@
 import numpy
 from numba import prange, njit
 
+
 class SkyRealisation:
+
+
     def __init__(self, sky_type, fluxes=0, l_coordinates=0, m_coordinates=0, spectral_indices=0,
                  seed=0, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, flux_low=400e-3, flux_mid=1, flux_high=5.,
-                 verbose = False):
+                 verbose=False):
 
         if verbose:
             print("Creating the sky realisation")
@@ -30,8 +33,8 @@ class SkyRealisation:
 
         return
 
-    def create_sky_image(self, frequency_channels, baseline_table = None, radiotelescope = None,
-                        resolution = None, oversampling=2):
+    def create_sky_image(self, frequency_channels, baseline_table=None, radiotelescope=None,
+                         resolution=None, oversampling=2):
 
         #####################################
         # Assume the sky is flat
@@ -47,32 +50,32 @@ class SkyRealisation:
             n_frequencies = 1
 
         if baseline_table is not None:
-            #Find longest baseline to determine sky_image sampling, pick highest frequency for longest baseline
+            # Find longest baseline to determine sky_image sampling, pick highest frequency for longest baseline
             max_u = numpy.max(numpy.abs(baseline_table.u(frequency_channels)))
             max_v = numpy.max(numpy.abs(baseline_table.v(frequency_channels)))
             max_b = max(max_u, max_v)
-            #sky_resolutions
-            min_l = 1./(2*max_b)
-            delta_l = min_l/oversampling
+            # sky_resolutions
+            min_l = 1. / (2 * max_b)
+            delta_l = min_l / oversampling
         elif radiotelescope is not None:
             max_u = numpy.max(numpy.abs(radiotelescope.baseline_table.u(frequency_channels)))
             max_v = numpy.max(numpy.abs(radiotelescope.baseline_table.v(frequency_channels)))
             max_b = max(max_u, max_v)
-            #sky_resolutions
-            min_l = 1./(2*max_b)
-            delta_l = min_l/oversampling
+            # sky_resolutions
+            min_l = 1. / (2 * max_b)
+            delta_l = min_l / oversampling
         elif resolution is not None:
             n_frequencies = 1
-            delta_l = resolution/oversampling
+            delta_l = resolution / oversampling
         elif radiotelescope == None and resolution == None:
             raise ValueError("Input either a RadioTelescope object or specify a resolution")
 
-        l_pixel_dimension = int(2./delta_l)
+        l_pixel_dimension = int(2. / delta_l)
 
         if l_pixel_dimension % 2 == 0:
             l_pixel_dimension += 1
 
-        #empty sky_image
+        # empty sky_image
         if n_frequencies > 1:
             sky_image = numpy.zeros((l_pixel_dimension, l_pixel_dimension, n_frequencies))
         elif n_frequencies == 1:
@@ -80,8 +83,7 @@ class SkyRealisation:
 
         l_coordinates = numpy.linspace(-1, 1, l_pixel_dimension)
 
-
-        l_shifts = numpy.diff(l_coordinates)/2.
+        l_shifts = numpy.diff(l_coordinates) / 2.
 
         l_bin_edges = numpy.concatenate((numpy.array([l_coordinates[0] - l_shifts[0]]),
                                          l_coordinates[1:] - l_shifts,
@@ -90,34 +92,30 @@ class SkyRealisation:
         if n_frequencies > 1:
             for frequency_index in range(n_frequencies):
                 sky_image[:, :, frequency_index], l_bins, m_bins = numpy.histogram2d(source_l, source_m,
-                                                                   bins=(l_bin_edges, l_bin_edges),
-                                                                   weights=source_flux)
+                                                                                     bins=(l_bin_edges, l_bin_edges),
+                                                                                     weights=source_flux)
         elif n_frequencies == 1:
             sky_image[:, :], l_bins, m_bins = numpy.histogram2d(source_l, source_m, bins=(l_bin_edges, l_bin_edges),
                                                                 weights=source_flux)
 
-        #normalise sky image for pixel size Jy/beam
-        normalised_sky_image = sky_image/(2/l_pixel_dimension)**2.
-
+        # normalise sky image for pixel size Jy/beam
+        normalised_sky_image = sky_image / (2 / l_pixel_dimension) ** 2.
 
         return normalised_sky_image, l_coordinates
 
-
-    def create_visibility_data(self, mode = 'analytic', interpolation = 'spline',
-                                       padding_factor = 3, parallel = False):
+    def create_visibility_data(self, mode='analytic', interpolation='spline',
+                               padding_factor=3, parallel=False):
 
         if mode == 'analytic':
             pass
         elif mode == 'numerical':
-            #check whether sky_image has already been created
+            # check whether sky_image has already been created
             pass
         return
 
 
-
-
-def stochastic_sky(seed = 0, k1=4100, gamma1=1.59, k2=4100, \
-                      gamma2=2.5, S_low=400e-3, S_mid=1, S_high=5.):
+def stochastic_sky(seed=0, k1=4100, gamma1=1.59, k2=4100, \
+                   gamma2=2.5, S_low=400e-3, S_mid=1, S_high=5.):
     numpy.random.seed(seed)
 
     # Franzen et al. 2016
