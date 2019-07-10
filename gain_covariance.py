@@ -24,10 +24,11 @@ def gain_variance(nu, path):
     # Step 5 Calculate the gain variance by summing by the rations per frequency
     # DFT that gain covariance matrix (off-diagonals == 0)
     # What is the frequency structure
-    tile_id = [31, 81, 1036]  # 81 #1036
+    tile_id = [31, 1036, 81]  # 81 #1036
 
     mwa_telescope = RadioTelescope(load=True, path=path, frequency_channels=nu)
     average_sky_brightness = moment_returner(n_order=1, S_low= 1, S_mid=1, S_high= 5)
+    print(average_sky_brightness)
     #print("brightness", average_sky_brightness)
 
     ratios = numpy.zeros((3, len(mwa_telescope.antenna_positions.antenna_ids), len(nu)))
