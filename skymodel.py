@@ -4,7 +4,6 @@ from numba import prange, njit
 
 class SkyRealisation:
 
-
     def __init__(self, sky_type, fluxes=0, l_coordinates=0, m_coordinates=0, spectral_indices=0,
                  seed=0, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, flux_low=400e-3, flux_mid=1, flux_high=5.,
                  verbose=False):
