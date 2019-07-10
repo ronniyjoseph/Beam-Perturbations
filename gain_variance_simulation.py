@@ -18,6 +18,8 @@ import multiprocessing
 from functools import partial
 from numba import prange, njit, float32, complex64, void
 
+from gain_covariance import gain_variance
+
 import time
 
 
@@ -76,6 +78,8 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
     if plot_variance:
         print("Plotting variances")
 
+        theoretical_variance = gain_variance(frequency_range, path=path)
+
         antenna_id = telescope.antenna_positions.antenna_ids
         n_antennas = len(antenna_id)
 
@@ -83,10 +87,14 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
         tile2_index = numpy.where(antenna_id == tile_id2)[0]
         tile3_index = numpy.where(antenna_id == tile_id3)[0]
 
-        figure = pyplot.figure(figsize=(18, 5))
-        tile1_plot = figure.add_subplot(131)
-        tile2_plot = figure.add_subplot(132)
-        tile3_plot = figure.add_subplot(133)
+        #figure = pyplot.figure(figsize=(18, 5))
+        #tile1_plot = figure.add_subplot(131)
+        #tile2_plot = figure.add_subplot(132)
+        #tile3_plot = figure.add_subplot(133)
+
+        figure, axes = pyplot.subplots(3, 3, figsize=(18, 12))
+        tile_indices = numpy.array([tile1_index, tile2_index, tile3_index])
+        tile_names = [tile_name1, tile_name2, tile_name3]
 
 
         for i in range(100):
@@ -97,50 +105,35 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
                 covariance[..., i] = numpy.linalg.pinv(FIM[..., i])
 
 
+            for k in range(3):
+                for l in range(3):
+
+                    #print(covariance[tile_indices[k], tile_indices[l], :].flatten())
+                    axes[k, l].plot(frequency_range / 1e6, covariance[tile_indices[k], tile_indices[l], :].flatten(),
+                                    'k', alpha=0.1)
+                    axes[k, l].set_title(tile_names[k] + ", " + tile_names[l])
+
+                    if l == k:
+                        axes[k,l].plot(frequency_range/1e6, theoretical_variance)
+                        axes[k,l].plot(frequency_range/1e6, theoretical_variance*10**(2.8))
+
+                        #axes[k, l].set_ylim(0.002,0.005)
+                        #axes[k, l].set_yscale('symlog')
 
 
-            tile1_plot.plot(frequency_range / 1e6, covariance[tile1_index, tile1_index, :].flatten(), 'k', alpha=0.1)
-            tile2_plot.plot(frequency_range / 1e6, covariance[tile2_index, tile2_index, :].flatten(), 'k', alpha=0.1)
-            tile3_plot.plot(frequency_range / 1e6, covariance[tile3_index, tile3_index, :].flatten(), 'k', alpha=0.1)
+                    if k == 2:
+                        axes[k, l].set_xlabel("Frequency [MHz]")
+            #tile1_plot.plot(frequency_range / 1e6, covariance[tile1_index, tile1_index, :].flatten(), 'k', alpha=0.1)
+            #tile2_plot.plot(frequency_range / 1e6, covariance[tile2_index, tile2_index, :].flatten(), 'k', alpha=0.1)
+            #tile3_plot.plot(frequency_range / 1e6, covariance[tile3_index, tile3_index, :].flatten(), 'k', alpha=0.1)
 
-        tile1_plot.set_title(tile_name1)
-        tile2_plot.set_title(tile_name2)
-        tile3_plot.set_title(tile_name3)
+        #tile1_plot.set_title(tile_name1)
+        #tile2_plot.set_title(tile_name2)
+        #tile3_plot.set_title(tile_name3)
 
         pyplot.show()
 
 
-
-
-
-
-
-
-
-        indices = numpy.array([tile1_index, tile2_index, tile3_index])
-        tile_names = [tile_name1, tile_name2, tile_name3]
-
-        #        figure = pyplot.figure(figsize=(18, 5))
-        #        tile1_plot = figure.add_subplot(131)
-        #        tile2_plot = figure.add_subplot(132)
-        #        tile3_plot = figure.add_subplot(133)
-
-        figure, axes = pyplot.subplots(3, 3, figsize=(18, 5))
-
-        for i in range(33):
-            FIM = numpy.load(output_path + project_path + "/" + "FIM_realisations/" + f"fim_realisation_{i}.npy")
-
-            covariance = numpy.zeros((n_antennas, n_antennas, len(frequency_range)))
-
-            for j in range(len(frequency_range)):
-                covariance[..., i] = numpy.linalg.pinv(FIM[..., i])
-
-            for k in range(3):
-                for l in range(3):
-                    print(covariance[indices[k], indices[l], :].flatten())
-                    axes[k, l].plot(frequency_range / 1e6, covariance[indices[k], indices[l], :].flatten(), 'k',
-                                    alpha=0.1)
-                    axes[k, l].set_title(tile_names[k] + ", " + tile_names[l])
 
 
 
