@@ -289,7 +289,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
     axes_label_font = 20
     tickfontsize = 15
 
-    figure = pyplot.figure(figsize = (10,7))
+    figure = pyplot.figure(figsize = (11,7))
     axes = figure.add_subplot(111)
 
     if cosmological:
@@ -306,7 +306,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
 
 
-        axes.set_xlim(5e-3, 2e-1)
+        axes.set_xlim(1e-4, 2e-1)
         axes.set_ylim(9e-3, 1)
     else:
         x_values = u_bins
@@ -323,7 +323,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
     if PS.min() < 0:
         print("Log Norm scale")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
-        norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=1e-1, vmax=symlog_max)
+        norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=-symlog_max, vmax=symlog_max)
         colormap = "coolwarm"
     else:
         print("I am here:")
@@ -392,12 +392,12 @@ if __name__ == "__main__":
     u = numpy.logspace(-1, 2.5, 100)
     nu = numpy.linspace(140, 160, 500)*1e6
 
-    output_folder = "/home/ronniyjoseph/Sync/PhD/Projects/hybrid_calibration/Plots/Analytic_Covariance/"
+    output_folder = "../../Plots/Analytic_Covariance/"
 
-    calculate_sky_PS(u, nu, save = True, plot_name= output_folder + "sky_ps.pdf")
+    #calculate_sky_PS(u, nu, save = True, plot_name= output_folder + "sky_ps.pdf")
     calculate_beam_2DPS(u, nu, save = True, plot_name= output_folder + "beam_ps.pdf")
 
-    calculate_total_2DPS(u, nu, save = True, plot_name= output_folder + "total_ps.pdf")
+    #calculate_total_2DPS(u, nu, save = True, plot_name= output_folder + "total_ps.pdf")
 
     #nu = numpy.linspace(135, 165, 200)*1e6
     #print(from_jansky_to_milikelvin(1, nu))
