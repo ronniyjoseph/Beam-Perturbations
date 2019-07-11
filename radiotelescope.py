@@ -20,20 +20,16 @@ class AntennaPositions:
             if path == None:
                 raise ValueError("Specificy the antenna position path if loading position data")
             else:
-                antenna_data = numpy.loadtxt(path)
 
-                antenna_data = antenna_data[numpy.argsort(antenna_data[:, 0])]
-
-                self.antenna_ids = antenna_data[:, 0]
-                self.x_coordinates = antenna_data[:, 1]
-                self.y_coordinates = antenna_data[:, 2]
-                self.z_coordinates = antenna_data[:, 3]
+                antenna_data = xyz_position_loader(path)
         else:
             antenna_data = xyz_position_creator(shape, verbose=verbose)
-            self.antenna_ids = antenna_data[:, 0]
-            self.x_coordinates = antenna_data[:, 1]
-            self.y_coordinates = antenna_data[:, 2]
-            self.z_coordinates = antenna_data[:, 3]
+
+        self.antenna_ids = antenna_data[:, 0]
+        self.x_coordinates = antenna_data[:, 1]
+        self.y_coordinates = antenna_data[:, 2]
+        self.z_coordinates = antenna_data[:, 3]
+
         return
 
     def number_antennas(self):
@@ -306,6 +302,23 @@ def electric_field_ground_plane(theta, frequency=150e6 , height= 0.3):
 def cross_dipole(theta):
     response = numpy.cos(theta)
     return response
+
+
+
+def xyz_position_loader(path):
+    antenna_data = numpy.loadtxt(path)
+
+    #Check whether antenna ids are passed are in here
+    if antenna_data.shape[1] != 4:
+        antenna_ids = numpy.arange(1, antenna_data.shape[0] + 1, 1).reshape((antenna_data.shape[0], 1))
+        antenna_data = numpy.hstack((antenna_ids, antenna_data))
+    elif antenna_data.shape[1] > 4:
+        raise ValueError(f"The antenna position file should only contain 4 columns: antenna_id, x, y, z. \n " +
+                         f"This file contains {antenna_data.shape[1]} columns")
+
+    antenna_data = antenna_data[numpy.argsort(antenna_data[:, 0])]
+
+    return antenna_data
 
 
 def xyz_position_creator(shape, verbose=False):
