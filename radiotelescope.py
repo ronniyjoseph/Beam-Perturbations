@@ -349,8 +349,10 @@ def xyz_position_creator(shape, verbose=False):
         if verbose:
             print("")
             print("Creating x- y- z-positions of a square array")
-        x_coordinates = numpy.arange(-shape[1], shape[1], shape[2])
-        y_coordinates = numpy.arange(-shape[1], shape[1], shape[2])
+        x_coordinates = numpy.linspace(-shape[1], shape[1], shape[2])
+        y_coordinates = numpy.linspace(-shape[1], shape[1], shape[2])
+
+        print(len(x_coordinates))
 
         block1 = numpy.zeros((len(x_coordinates) * len(y_coordinates), 4))
         k = 0
@@ -408,11 +410,18 @@ def xyz_position_creator(shape, verbose=False):
         hex_block = numpy.vstack((block1, block2, block3, block4))
 
         if shape[0] == 'hex':
+            if len(shape) != 4:
+                raise ValueError(f"shape input to generate 'hex' array should contain 4 entries NOT {len(shape)}\n" +
+                                 "['hex', horizontal minimum spacing, x centre coordinate, y centre coordinate")
             hex_block[:, 0] += shape[2]
             hex_block[:, 1] += shape[3]
             antenna_numbers = numpy.arange(len(hex_block[:, 0])) + 1001
             xyz_coordinates = numpy.vstack((antenna_numbers, hex_block.T)).T
         elif shape[0] == 'doublehex':
+            if len(shape) != 6:
+                raise ValueError(f"shape input to generate 'hex' array should contain 6 entries NOT {len(shape)}\n" +
+                                 "['hex', horizontal minimum spacing, x centre hex1, y centre hex1, x centre hex2, y centre hex2]")
+
             antenna_numbers = numpy.arange(len(hex_block[:, 0])) + 1001
             first_hex = numpy.vstack((antenna_numbers, hex_block.T)).T
 
@@ -432,7 +441,11 @@ def xyz_position_creator(shape, verbose=False):
             print("Creating x- y- z-positions of a " + str(shape[2]) + " element linear array")
         xyz_coordinates = numpy.zeros((shape[2], 4))
         xyz_coordinates[:, 0] = numpy.arange(shape[2]) + 1001
-        xyz_coordinates[:, 1] = numpy.linspace(-shape[1], shape[1], shape[2])
-
+        if len(shape) == 3:
+            xyz_coordinates[:, 1] = numpy.linspace(-shape[1], shape[1], shape[2])
+        elif len(shape) == 4 and shape[3]=='log':
+            xyz_coordinates[:, 1] = numpy.logspace(1, numpy.log10(shape[1]), shape[2])
+        else:
+            pass
 
     return xyz_coordinates
