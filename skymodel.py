@@ -102,6 +102,17 @@ class SkyRealisation:
 
         return normalised_sky_image, l_coordinates
 
+
+    def select_sources(self, indices):
+        selected_fluxes =self.fluxes[indices]
+        selected_l_coordinates = self.l_coordinates[indices]
+        selected_m_coordinates = self.m_coordinates[indices]
+        selected_spectral_indices = self.spectral_indices[indices]
+        sky_selection = SkyRealisation(sky_type='point', fluxes=selected_fluxes, l_coordinates=selected_l_coordinates,
+                                       m_coordinates=selected_m_coordinates, spectral_indices=selected_spectral_indices)
+
+        return sky_selection
+
     def create_visibility_data(self, mode='analytic', interpolation='spline',
                                padding_factor=3, parallel=False):
 
