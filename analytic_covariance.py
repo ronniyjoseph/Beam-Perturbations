@@ -320,15 +320,14 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         axes.set_xlim(xmin = 1, xmax = 200)
         axes.set_ylim(eta_bins[1], eta_bins.max())
 
-    if PS.min() < 0:
+    if PS.min() < -1e3:
         print("Log Norm scale")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
         norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=-symlog_max, vmax=symlog_max)
         colormap = "coolwarm"
     else:
-        print("I am here:")
+        print("LogNorm Scaled Data:")
         #symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
-        print(numpy.real(z_values).min(), numpy.real(z_values).max())
         norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
         colormap = "viridis"
     if title is not None:
@@ -350,7 +349,8 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
 
     if save:
         figure.savefig(save_name)
-
+    else:
+        pyplot.show()
 
     return
 
