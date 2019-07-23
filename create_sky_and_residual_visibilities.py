@@ -28,12 +28,14 @@ def main():
     shape = ['linear', 400, 20, 'log']
     load = False
     create_signal = False
+    compute_ratio = True
     compute_covariance = False
     serial = True
-    plot_covariance = True
+    plot_covariance = False
 
     telescope = RadioTelescope(load=load, shape =shape)
     baseline_table = telescope.baseline_table
+
 
     if not os.path.exists(output_path + project_path + "/"):
         print("Creating Project folder at output destination!")
@@ -41,6 +43,20 @@ def main():
 
     if create_signal:
         create_model_and_residuals(baseline_table, frequency_range, n_realisations, output_path + project_path)
+
+    if compute_ratio:
+        #ratio = compute_residual_to_model_ratio_serial(baseline_table, frequency_range, output_path + project_path, n_realisations)
+        ratio_taylor = numpy.load(output_path + project_path + "/" + "Simulated_Visibilities/" + f"residual_model_ratios_taylor.npy")
+        ratio_full = numpy.load(output_path + project_path + "/" + "Simulated_Visibilities/" + f"residual_model_ratios_full.npy")
+
+        ratio_diff = ratio_full - ratio_taylor
+        figure, axes  = pyplot.subplots(1, 3,  figsize =(15,5))
+
+        axes[0].plot(frequency_range/1e6, numpy.abs(ratio_full[0, ...]), color = 'k', alpha = 0.1)
+        axes[1].plot(frequency_range/1e6, numpy.abs(ratio_full[122, ...]), color = 'k', alpha = 0.1)
+        axes[2].plot(frequency_range/1e6, numpy.abs(ratio_full[180, ...]), color = 'k', alpha = 0.1)
+
+        pyplot.show()
 
     if compute_covariance:
         if serial:
@@ -190,6 +206,25 @@ def compute_frequency_frequency_covariance_serial(baseline_table, frequency_rang
     numpy.save(path + f"frequency_frequency_covariance", baseline_frequency_covariance)
 
     return baseline_frequency_covariance
+
+
+def compute_residual_to_model_ratio_serial(baseline_table, frequency_range, path, n_realisations):
+    print("Computing Ratios")
+    residual_model_ratios = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range), n_realisations),
+                                        dtype = complex)
+    full_ratios = residual_model_ratios.copy()
+    for i in range(n_realisations):
+        model_signal = numpy.load(path +  "/" + "Simulated_Visibilities/" + f"model_realisation_{i}.npy")
+        residual_signal = numpy.load(path +  "/" + "Simulated_Visibilities/" + f"residual_realisation_{i}.npy")
+        residual_model_ratios[:, :, i] = 1 -  residual_signal / model_signal
+        full_ratios[:, :, i] = model_signal / (model_signal + residual_signal)
+
+    print("Saving Ratios")
+    numpy.save(path +  "/" + "Simulated_Visibilities/" + f"residual_model_ratios_taylor", residual_model_ratios)
+    numpy.save(path +  "/" + "Simulated_Visibilities/" + f"residual_model_ratios_full", full_ratios)
+
+    return residual_model_ratios
+
 
 
 if __name__ == "__main__":
