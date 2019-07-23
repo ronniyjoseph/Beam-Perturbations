@@ -134,13 +134,6 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
         pyplot.show()
 
 
-
-
-
-
-
-
-
     print("Finished")
     return
 
