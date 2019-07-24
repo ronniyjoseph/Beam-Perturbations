@@ -320,8 +320,8 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         axes.set_xlim(xmin = 1, xmax = 200)
         axes.set_ylim(eta_bins[1], eta_bins.max())
 
-    if PS.min() < -1e3:
-        print("Log Norm scale")
+    if PS.min() < 0:
+        print("SymLog Norm scale")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
         norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=-symlog_max, vmax=symlog_max)
         colormap = "coolwarm"
@@ -350,8 +350,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
     if save:
         figure.savefig(save_name)
     else:
-        pyplot.show()
-
+        pass
     return
 
 def test_dft_on_signal():
