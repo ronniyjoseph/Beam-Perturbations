@@ -31,7 +31,7 @@ def main():
     compute_ratio = True
     compute_covariance = False
     serial = True
-    plot_covariance = False
+    plot_covariance = True
 
     telescope = RadioTelescope(load=load, shape =shape)
     baseline_table = telescope.baseline_table
@@ -45,16 +45,36 @@ def main():
         create_model_and_residuals(baseline_table, frequency_range, n_realisations, output_path + project_path)
 
     if compute_ratio:
-        #ratio = compute_residual_to_model_ratio_serial(baseline_table, frequency_range, output_path + project_path, n_realisations)
-        ratio_taylor = numpy.load(output_path + project_path + "/" + "Simulated_Visibilities/" + f"residual_model_ratios_taylor.npy")
+
         ratio_full = numpy.load(output_path + project_path + "/" + "Simulated_Visibilities/" + f"residual_model_ratios_full.npy")
 
-        ratio_diff = ratio_full - ratio_taylor
-        figure, axes  = pyplot.subplots(1, 3,  figsize =(15,5))
+        maximum_baseline = numpy.min(baseline_table.u_coordinates)
+        max_index = numpy.where(numpy.abs(baseline_table.u_coordinates - maximum_baseline) ==
+                                numpy.min(numpy.abs(baseline_table.u_coordinates - maximum_baseline)))[0][0]
+        half_index = numpy.where(numpy.abs(baseline_table.u_coordinates - maximum_baseline/2) ==
+                                numpy.min(numpy.abs(baseline_table.u_coordinates - maximum_baseline/2)))[0][0]
+        min_index = numpy.where(numpy.abs(baseline_table.u_coordinates + 7) ==
+                                numpy.min(numpy.abs(baseline_table.u_coordinates + 7)))[0][0]
 
-        axes[0].plot(frequency_range/1e6, numpy.abs(ratio_full[0, ...]), color = 'k', alpha = 0.1)
-        axes[1].plot(frequency_range/1e6, numpy.abs(ratio_full[122, ...]), color = 'k', alpha = 0.1)
-        axes[2].plot(frequency_range/1e6, numpy.abs(ratio_full[180, ...]), color = 'k', alpha = 0.1)
+        indices = [min_index, half_index, max_index]
+
+
+
+        ######### Compute variances as approximation ##########
+        model_variance = sky_covariance(0,0, frequency_range, S_low = 1, S_high = 10)
+        residual_variance = sky_covariance(0,0, frequency_range, S_high = 1)
+
+        figure, axes  = pyplot.subplots(2, 3,  figsize =(15,5), subplot_kw=dict(xlabel = r"$\nu$ [MHz]"))
+
+        for i in range(3):
+            axes[0, i].plot(frequency_range / 1e6, numpy.abs(1 - ratio_full[indices[i], :, ::80]), color='k', alpha=0.1)
+            axes[0, i].plot(frequency_range / 1e6, numpy.diag(residual_variance)/numpy.diag(model_variance), color='C0')
+
+            axes[1, i].imshow(numpy.log10(numpy.abs(numpy.cov(1 - ratio_full[indices[i], :, :]))))
+            axes[0, i].set_yscale("symlog")
+            axes[0, i].set_title(f"u={int(numpy.abs(baseline_table.u_coordinates[indices[i]]))}")
+
+        axes[0, 0].set_ylabel(r"$\delta$g")
 
         pyplot.show()
 
@@ -78,9 +98,15 @@ def residual_PS_error(baseline_table, frequency_range, path, plot = True):
     cal_variance = numpy.zeros((len(u), len(frequency_range)))
     raw_variance = numpy.zeros((len(u), len(frequency_range)))
 
-    frequency_frequency_covariance = numpy.load(path + "/Simulated_Covariance/" +
-                                                f"/frequency_frequency_covariance_9999.npy")
-    gain_covariance = numpy.sum(frequency_frequency_covariance, axis=0) / baseline_table.number_of_baselines**5
+    #frequency_frequency_covariance = numpy.load(path + "/Simulated_Covariance/" +
+    #                                            f"/frequency_frequency_covariance_9999.npy")
+    model_variance = numpy.diag(sky_covariance(0,0, frequency_range, S_low = 1, S_high = 10))
+    model_normalisation = numpy.sqrt(numpy.outer(model_variance, model_variance))
+    frequency_frequency_covariance = numpy.zeros((len(u), len(frequency_range), len(frequency_range)))
+    for u_index in range(len(u)):
+        frequency_frequency_covariance[u_index, :, :] = sky_covariance(u[u_index], 0, frequency_range)/model_normalisation
+
+    gain_covariance = numpy.sum(frequency_frequency_covariance, axis=0) / (baseline_table.number_of_baselines**4)
     window_function = blackman_harris_taper(frequency_range)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
 
@@ -97,11 +123,12 @@ def residual_PS_error(baseline_table, frequency_range, path, plot = True):
         raw_variance[i, :] = PS(taper1, taper2, residual_covariance, dftmatrix)
     if plot:
         plot_PS(u, eta[:int(len(eta)/2)], frequency_range, cal_variance[:, :int(len(eta) / 2)], cosmological=True,
-                title="Total", save=False, save_name=path + "/residual_calibrated_PS.pdf")
+                title="Calibrated Residuals", save=False, save_name=path + "/residual_calibrated_PS.pdf")
         plot_PS(u, eta[:int(len(eta)/2)], frequency_range, raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-                title="Total", save=False, save_name=path + "/residual_calibrated_PS.pdf")
+                title="Uncalibrated Residuals", save=False, save_name=path + "/residual_uncalibrated_PS.pdf")
         plot_PS(u, eta[:int(len(eta)/2)], frequency_range, cal_variance[:, :int(len(eta) / 2)] - raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-                title="Total", save=False, save_name=path + "/residual_calibrated_PS.pdf")
+                title="Difference", save=False, save_name=path + "/residual_difference_PS.pdf")
+        pyplot.show()
 
     return
 
