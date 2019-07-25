@@ -136,8 +136,12 @@ def moment_returner(n_order, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, S_low=40
 
 
 def dft_matrix(nu):
+
     dft = numpy.exp(-2 * numpy.pi * 1j / len(nu)) ** numpy.arange(0, len(nu), 1)
     dftmatrix = numpy.vander(dft, increasing=True)/numpy.sqrt(len(nu))
+
+    pyplot.imshow(numpy.abs(dftmatrix))
+    pyplot.show()
 
     eta = numpy.arange(0, len(nu), 1)/(nu.max() - nu.min())
 
@@ -152,11 +156,11 @@ def blackman_harris_taper(frequency_range):
 
 def calculate_beam_PS(u, nu):
 
-
     uu, vv = numpy.meshgrid(u, u)
     variance_cube = numpy.zeros((len(u), len(u), len(nu)))
 
     window_function = blackman_harris_taper(nu)
+    #window_function = signal.gaussian(nu)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
 
     dftmatrix, eta = dft_matrix(nu)
@@ -254,9 +258,13 @@ def calculate_total_2DPS(u, nu, save = False, plot = True, plot_name = "total_ps
 
 def calculate_sky_PS(u, nu, title = "Sky", save = False, plot_name = "sky_ps.pdf"):
 
+    roll_length = 0
+    window_function = numpy.zeros(len(nu)) + 1 #blackman_harris_taper(nu)
+    pyplot.plot(nu, window_function)
+    pyplot.plot(nu, numpy.roll(window_function,roll_length))
+    print(nu[window_function == window_function.max()])
 
-    window_function = blackman_harris_taper(nu)
-    taper1, taper2 = numpy.meshgrid(window_function, window_function)
+    taper1, taper2 = numpy.meshgrid(window_function, numpy.roll(window_function,roll_length))
 
     dftmatrix, eta = dft_matrix(nu)
 
@@ -306,8 +314,8 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
 
 
-        axes.set_xlim(1e-4, 2e-1)
-        axes.set_ylim(9e-3, 1)
+        axes.set_xlim(1e-3, 1e-1)
+        axes.set_ylim(9e-3, 5e-1)
     else:
         x_values = u_bins
         y_values = eta_bins
@@ -320,13 +328,14 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         axes.set_xlim(xmin = 1, xmax = 200)
         axes.set_ylim(eta_bins[1], eta_bins.max())
 
-    if PS.min() < 0:
+    if PS.min() < -1e-12:
         print("SymLog Norm scale")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
         norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=-symlog_max, vmax=symlog_max)
         colormap = "coolwarm"
     else:
         print("LogNorm Scaled Data:")
+        z_values[PS < 0 ] = numpy.abs(z_values[PS < 0 ])
         #symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
         norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
         colormap = "viridis"
@@ -389,12 +398,12 @@ def test_dft_on_signal():
 
 if __name__ == "__main__":
     u = numpy.logspace(-1, 2.5, 100)
-    nu = numpy.linspace(140, 160, 500)*1e6
+    nu = numpy.linspace(140, 160, 501)*1e6
 
     output_folder = "../../Plots/Analytic_Covariance/"
 
-    #calculate_sky_PS(u, nu, save = True, plot_name= output_folder + "sky_ps.pdf")
-    calculate_beam_2DPS(u, nu, save = True, plot_name= output_folder + "beam_ps.pdf")
+    calculate_sky_PS(u, nu, save = False, plot_name= output_folder + "sky_ps.pdf")
+    #calculate_beam_2DPS(u, nu, save = True, plot_name= output_folder + "beam_ps.pdf")
 
     #calculate_total_2DPS(u, nu, save = True, plot_name= output_folder + "total_ps.pdf")
 
