@@ -28,7 +28,7 @@ def main():
     shape = ['linear', 400, 20, 'log']
     load = False
     create_signal = False
-    compute_ratio = True
+    compute_ratio = False
     compute_covariance = False
     serial = True
     plot_covariance = True
@@ -67,14 +67,16 @@ def main():
         figure, axes  = pyplot.subplots(2, 3,  figsize =(15,5), subplot_kw=dict(xlabel = r"$\nu$ [MHz]"))
 
         for i in range(3):
-            axes[0, i].plot(frequency_range / 1e6, numpy.abs(1 - ratio_full[indices[i], :, ::80]), color='k', alpha=0.1)
+            axes[0, i].plot(frequency_range / 1e6, numpy.abs(1 - ratio_full[indices[i], :, ::1]), color='k', alpha=0.01)
             axes[0, i].plot(frequency_range / 1e6, numpy.diag(residual_variance)/numpy.diag(model_variance), color='C0')
 
-            axes[1, i].imshow(numpy.log10(numpy.abs(numpy.cov(1 - ratio_full[indices[i], :, :]))))
+            axes[1, i].pcolormesh(frequency_range/1e6, frequency_range/1e6,
+                                  numpy.log10(numpy.abs(numpy.cov(1 - ratio_full[indices[i], :, :]))))
             axes[0, i].set_yscale("symlog")
             axes[0, i].set_title(f"u={int(numpy.abs(baseline_table.u_coordinates[indices[i]]))}")
 
         axes[0, 0].set_ylabel(r"$\delta$g")
+        axes[1, 0].set_ylabel(r"$\nu$ [MHz]")
 
         pyplot.show()
 
