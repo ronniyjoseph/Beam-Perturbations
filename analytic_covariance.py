@@ -329,7 +329,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         axes.set_ylim(eta_bins[1], eta_bins.max())
 
     if PS.min() < -1e-12:
-        print("SymLog Norm scale")
+        print(f"SymLog Norm scaled Data: {PS.min()}")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
         norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=-symlog_max, vmax=symlog_max)
         colormap = "coolwarm"
@@ -357,6 +357,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
     cax.ax.tick_params(axis='both', which='major', labelsize=tickfontsize)
 
     if save:
+        print(save_name)
         figure.savefig(save_name)
     else:
         pass
