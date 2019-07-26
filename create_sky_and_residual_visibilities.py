@@ -96,6 +96,7 @@ def main():
 
 
 def residual_PS_error(baseline_table, frequency_range, path, plot = True):
+    print(path)
     u = numpy.logspace(0, numpy.log10(200), 100)
     cal_variance = numpy.zeros((len(u), len(frequency_range)))
     raw_variance = numpy.zeros((len(u), len(frequency_range)))
@@ -125,11 +126,15 @@ def residual_PS_error(baseline_table, frequency_range, path, plot = True):
         raw_variance[i, :] = PS(taper1, taper2, residual_covariance, dftmatrix)
     if plot:
         plot_PS(u, eta[:int(len(eta)/2)], frequency_range, cal_variance[:, :int(len(eta) / 2)], cosmological=True,
-                title="Calibrated Residuals", save=False, save_name=path + "/residual_calibrated_PS.pdf")
+                title="Calibrated Residuals", save=True, save_name=path + "/residual_calibrated_PS.pdf")
         plot_PS(u, eta[:int(len(eta)/2)], frequency_range, raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-                title="Uncalibrated Residuals", save=False, save_name=path + "/residual_uncalibrated_PS.pdf")
+                title="Uncalibrated Residuals", save=True, save_name=path + "/residual_uncalibrated_PS.pdf")
         plot_PS(u, eta[:int(len(eta)/2)], frequency_range, cal_variance[:, :int(len(eta) / 2)] - raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-                title="Difference", save=False, save_name=path + "/residual_difference_PS.pdf")
+                title="Difference", save=True, save_name=path + "/residual_difference_PS.pdf")
+        plot_PS(u, eta[:int(len(eta)/2)], frequency_range,
+                (cal_variance[:, :int(len(eta) / 2)] - raw_variance[:, :int(len(eta) / 2)])/raw_variance[:, :int(len(eta) / 2)], cosmological=True,
+                title="Ratio", save=True, save_name=path + "/residual_ratio_PS.pdf")
+
         pyplot.show()
 
     return
