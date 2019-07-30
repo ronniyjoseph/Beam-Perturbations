@@ -44,6 +44,11 @@ def main():
     if create_signal:
         create_model_and_residuals(baseline_table, frequency_range, n_realisations, output_path + project_path)
 
+    if plot_model_signal:
+        pass
+
+
+
     if compute_ratio:
 
         ratio_full = numpy.load(output_path + project_path + "/" + "Simulated_Visibilities/" + f"residual_model_ratios_full.npy")
@@ -258,6 +263,21 @@ def compute_residual_to_model_ratio_serial(baseline_table, frequency_range, path
     numpy.save(path +  "/" + "Simulated_Visibilities/" + f"residual_model_ratios_full", full_ratios)
 
     return residual_model_ratios
+
+
+def plot_model_serial(baseline_table, frequency_range, path, n_realisations):
+    print("Plotting Model Data")
+    figure, axes = pyplot.subplots(2, 1, figsize = (12, 5))
+
+    for i in range(n_realisations):
+        model_signal = numpy.load(path +  "/" + "Simulated_Visibilities/" + f"model_realisation_{i}.npy")
+        residual_signal = numpy.load(path +  "/" + "Simulated_Visibilities/" + f"residual_realisation_{i}.npy")
+
+        axes[0].plot()
+
+    print("Saving Ratios")
+
+    return
 
 
 
