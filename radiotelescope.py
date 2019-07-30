@@ -37,7 +37,7 @@ class AntennaPositions:
 
 
 class BaselineTable:
-    def __init__(self, position_table, frequency_channels=None, verbose=False):
+    def __init__(self, position_table = None, frequency_channels=None, verbose=False):
         self.antenna_id1 = None
         self.antenna_id2 = None
         self.u_coordinates = None
@@ -47,7 +47,8 @@ class BaselineTable:
         self.number_of_baselines = None
         self.selection = None
         # update all attributes
-        self.baseline_converter(position_table, frequency_channels, verbose)
+        if position_table is not None:
+            self.baseline_converter(position_table, frequency_channels, verbose)
         return
 
     def baseline_converter(self, position_table, frequency_channels=None, verbose=True):
