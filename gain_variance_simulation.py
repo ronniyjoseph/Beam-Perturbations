@@ -62,6 +62,7 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
                        signal)
             signal_time1 = time.perf_counter()
             print(f"Realisation {i} Time = {signal_time1 - signal_time0} \n")
+
     if compute_FIM:
         covariance_matrices = compute_frequency_covariance(baseline_table, frequency_range)
 
@@ -70,9 +71,7 @@ def simulate_gain_variances(create_signal=True, compute_FIM=True, plot_variance=
 
             signal = numpy.load(
                 output_path + project_path + "/" + "Simulated_Visibilities/" + f"visibility_realisation_{i}.npy")
-
             FIM = get_FIM(signal, telescope, baseline_table, frequency_range, covariance_matrices)
-
             numpy.save(output_path + project_path + "/" + "FIM_realisations/" + f"fim_realisation_{i}", FIM)
 
     if plot_variance:
