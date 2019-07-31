@@ -10,6 +10,8 @@ from generaltools import from_lm_to_theta_phi
 from generaltools import colorbar
 import matplotlib.colors as colors
 
+from scipy.signal import convolve2d
+
 sys.path.append("../")
 
 def main():
@@ -78,20 +80,46 @@ def main():
                 baseline_weights2 = 0
             else:
                 baseline_weights2 = baseline_weights[index2 - 1, :]
-            u_u_weights[i, :] = numpy.sqrt(baseline_weights1**2 + baseline_weights2**2)
-        #pyplot.imshow(u_u_weights, origin = 'lower', interpolation = 'none')
-        #pyplot.show()
-        uu1, uu2 = numpy.meshgrid(baseline_lengths, baseline_lengths)
+            u_u_weights[i, :] = (baseline_weights1 + baseline_weights2)/2
+
         u_bins = numpy.linspace(0, numpy.max(baseline_lengths), 101)
+
+
+        sorted_indices = numpy.argsort(baseline_lengths)
+        sorted_weights = u_u_weights[sorted_indices, :][:, sorted_indices]
+        fig_cal, axes_cal = pyplot.subplots(1,2)
+        cal_plot = axes_cal[0].imshow(u_u_weights, origin = 'lower', interpolation = 'none')
+        axes_cal[0].set_xlabel("Uncalibrated Baseline Index")
+        axes_cal[0].set_ylabel("Calibrated Baseline Index")
+        axes_cal[0].set_title("Baseline-Baseline' Weights Quadrature")
+        colorbar(cal_plot)
+
+
+        bin_indices = numpy.digitize(baseline_lengths[sorted_indices], u_bins)
+
+        sorted_plot = axes_cal[1].imshow(sorted_weights, interpolation='none', origin='lower')
+        #axes_cal[1].set_xlabel("Uncalibrated Baseline Index")
+        #axes_cal[1].set_ylabel("Calibrated Baseline Index")
+        axes_cal[1].set_title(" Sorted Baseline-Baseline' Weights")
+        colorbar(sorted_plot)
+
+        uu1, uu2 = numpy.meshgrid(baseline_lengths, baseline_lengths)
         flattened_weights = u_u_weights.flatten()
         flattened_uu1 = uu1.flatten()
         flattened_uu2 = uu2.flatten()
 
         computed_weights = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins = u_bins ,
                                                                  weights = flattened_weights)
+        bin_counter = numpy.zeros_like(computed_weights)
+        bin_counter += 1e-10
+        bin_counter[computed_weights != 0] = 2
+
+        computed_counts = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins = u_bins ,
+                                                                 weights = bin_counter.flatten() )
+
         figure_uu, axes_uu = pyplot.subplots(1,1)
         norm = colors.LogNorm(vmax= 1e-3 )
-        weights_plot = axes_uu.pcolor(u_bins, u_bins, computed_weights[0])
+        weights_plot = axes_uu.pcolor(u_bins, u_bins, computed_counts[0])
         # weights_plot = axes_uu.imshow(binned_weights, origin = 'lower', norm = norm)
 
         cbar_uu = colorbar(weights_plot)
@@ -101,11 +129,12 @@ def main():
         cbar_uu.set_label("Poorly Defined Weights")
         figure_uu.savefig(plot_folder + "Baseline_Weights_uu.pdf")
 
-        approx_weights = numpy.histogram(baseline_lengths, bins = u_bins, density = True)
-        ww1, ww2 = numpy.meshgrid(approx_weights[0], approx_weights[0])
-
+        baseline_pdf = numpy.histogram(baseline_lengths, bins = u_bins, density = True)
+        ww1, ww2 = numpy.meshgrid(baseline_pdf[0], baseline_pdf[0])
+        approx_weights = ww1*ww2
         figure_approx, axes_approx = pyplot.subplots(1,1)
-        dirty_plot = axes_approx.pcolor(u_bins, u_bins , ww1*ww2)
+        dirty_plot = axes_approx.pcolor(u_bins, u_bins , approx_weights)
+
 
         # dirty_plot = axes_dirty.imshow(ww1*ww2, origin = 'lower', norm=norm)
 
@@ -116,7 +145,7 @@ def main():
         cbar_dirty.set_label("Poorly Defined Weights")
 
         fig, ax = pyplot.subplots(1,1)
-        blaah = ax.pcolor(u_bins, u_bins, computed_weights[0] - ww1*ww2)
+        blaah = ax.pcolor(u_bins, u_bins, computed_weights[0] -approx_weights)
         ax.set_xlabel(r"$u\,[\lambda]$")
         ax.set_ylabel(r"$u^{\prime}\,[\lambda]$")
         colorbar(blaah)

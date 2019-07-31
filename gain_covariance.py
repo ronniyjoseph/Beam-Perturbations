@@ -145,7 +145,6 @@ if __name__ == "__main__":
     nu = numpy.linspace(145, 155, 101)*1e6
     u = numpy.logspace(0.1, 2.5, 100)
     eta, res_PS = calculate_residual_2DPS(u, nu, path=path)
-#    gain_variance(path)
     eta1, original_PS = calculate_total_2DPS(u, nu, plot = False)
 
 

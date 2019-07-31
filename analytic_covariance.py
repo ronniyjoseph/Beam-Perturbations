@@ -140,9 +140,6 @@ def dft_matrix(nu):
     dft = numpy.exp(-2 * numpy.pi * 1j / len(nu)) ** numpy.arange(0, len(nu), 1)
     dftmatrix = numpy.vander(dft, increasing=True)/numpy.sqrt(len(nu))
 
-    pyplot.imshow(numpy.abs(dftmatrix))
-    pyplot.show()
-
     eta = numpy.arange(0, len(nu), 1)/(nu.max() - nu.min())
 
     return dftmatrix, eta
@@ -328,7 +325,7 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         axes.set_xlim(xmin = 1, xmax = 200)
         axes.set_ylim(eta_bins[1], eta_bins.max())
 
-    if PS.min() < -1e-12:
+    if PS.min() < -3e-5:
         print(f"SymLog Norm scaled Data: {PS.min()}")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
         norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=-symlog_max, vmax=symlog_max)
@@ -337,13 +334,14 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         print("LogNorm Scaled Data:")
         z_values[PS < 0 ] = numpy.abs(z_values[PS < 0 ])
         #symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
-        norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
+        #norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
         colormap = "viridis"
     if title is not None:
         axes.set_title(title)
 
-
-    psplot = axes.pcolor(x_values, y_values, z_values.T, norm=norm, cmap=colormap, rasterized = True)
+    print(numpy.median(z_values))
+    #psplot = axes.pcolor(x_values, y_values, z_values.T, norm=norm, cmap=colormap, rasterized = True)
+    psplot = axes.pcolor(x_values, y_values, z_values.T, cmap=colormap, rasterized=True)
     cax = colorbar(psplot)
 
     axes.set_xscale('log')

@@ -32,7 +32,7 @@ def main():
     compute_covariance = False
     serial = True
     plot_covariance = True
-
+    plot_model_signal = False
     telescope = RadioTelescope(load=load, shape =shape)
     baseline_table = telescope.baseline_table
 
@@ -138,7 +138,7 @@ def residual_PS_error(baseline_table, frequency_range, path, plot = True):
                 title="Difference", save=True, save_name=path + "/residual_difference_PS.pdf")
         plot_PS(u, eta[:int(len(eta)/2)], frequency_range,
                 (cal_variance[:, :int(len(eta) / 2)] - raw_variance[:, :int(len(eta) / 2)])/raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-                title="Ratio", save=True, save_name=path + "/residual_ratio_PS.pdf")
+                title="Ratio", save=True, save_name=path + "/residual_ratio_PS.pdf", ratio=True)
 
         pyplot.show()
 
