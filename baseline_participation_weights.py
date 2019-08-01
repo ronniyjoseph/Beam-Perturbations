@@ -110,20 +110,20 @@ def main():
 
         computed_weights = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins = u_bins ,
                                                                  weights = flattened_weights)
-        bin_counter = numpy.zeros_like(computed_weights)
-        bin_counter += 1e-10
-        bin_counter[computed_weights != 0] = 2
+        bin_counter = numpy.zeros_like(u_u_weights)
+        bin_counter[u_u_weights != 0] = 1
 
         computed_counts = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins = u_bins ,
-                                                                 weights = bin_counter.flatten() )
+                                                                  weights = bin_counter.flatten() )
 
         figure_uu, axes_uu = pyplot.subplots(1,1)
-        norm = colors.LogNorm(vmax= 1e-3 )
-        weights_plot = axes_uu.pcolor(u_bins, u_bins, computed_counts[0])
+        norm = colors.LogNorm( )
+
+        weights_plot = axes_uu.pcolor(u_bins, u_bins, computed_weights[0]/computed_counts[0], norm = norm)
         # weights_plot = axes_uu.imshow(binned_weights, origin = 'lower', norm = norm)
 
         cbar_uu = colorbar(weights_plot)
-        axes_uu.set_title(r"Computed Weights")
+        axes_uu.set_title(r"Averaged Computed Weights")
         axes_uu.set_xlabel(r"$u\,[\lambda]$")
         axes_uu.set_ylabel(r"$u^{\prime}\,[\lambda]$")
         cbar_uu.set_label("Poorly Defined Weights")
@@ -131,9 +131,11 @@ def main():
 
         baseline_pdf = numpy.histogram(baseline_lengths, bins = u_bins, density = True)
         ww1, ww2 = numpy.meshgrid(baseline_pdf[0], baseline_pdf[0])
+        norm = colors.LogNorm( )
+
         approx_weights = ww1*ww2
         figure_approx, axes_approx = pyplot.subplots(1,1)
-        dirty_plot = axes_approx.pcolor(u_bins, u_bins , approx_weights)
+        dirty_plot = axes_approx.pcolor(u_bins, u_bins , approx_weights, norm = norm)
 
 
         # dirty_plot = axes_dirty.imshow(ww1*ww2, origin = 'lower', norm=norm)
