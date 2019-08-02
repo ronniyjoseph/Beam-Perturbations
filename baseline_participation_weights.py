@@ -21,7 +21,8 @@ def main():
     plot_array_matrix = False
     plot_inverse_matrix = False
     plot_weights = False
-    grid_weights = True
+    grid_weights = False
+    binned_weights = True
     telescope = RadioTelescope(load=True, path=path)
     baseline_lengths = numpy.sqrt(telescope.baseline_table.u_coordinates**2 + telescope.baseline_table.v_coordinates**2)
 
@@ -54,7 +55,8 @@ def main():
         plot_inverse = axes_inverse.imshow(numpy.abs(inverse_array_matrix))
         colorbar(plot_inverse)
 
-    baseline_weights = numpy.sqrt((numpy.abs(inverse_array_matrix[::2, ::2])**2 + numpy.abs(inverse_array_matrix[1::2, 1::2])**2))
+    baseline_weights = numpy.sqrt((numpy.abs(inverse_array_matrix[::2, ::2])**2 +
+                                   numpy.abs(inverse_array_matrix[1::2, 1::2])**2))
     # baseline_weights = numpy.sqrt(numpy.abs(inverse_array_matrix[:int(len(telescope.antenna_positions.antenna_ids) - 1), :int(len(baseline_lengths))])**2 + \
     #                    numpy.abs(inverse_array_matrix[int(len(telescope.antenna_positions.antenna_ids) -1 ):, :int(len(baseline_lengths)):])**2)
     if plot_weights:
@@ -63,46 +65,54 @@ def main():
         axes_weights.set_title("Antenna Baseline Weights")
         colorbar(weights_plot)
 
+    u_u_weights = numpy.zeros((len(baseline_lengths), len(baseline_lengths)))
+    baselines = telescope.baseline_table
+    antennas = telescope.antenna_positions.antenna_ids
+    for i in range(len(baseline_lengths)):
+        index1 = numpy.where(antennas == baselines.antenna_id1[i])[0]
+        index2 = numpy.where(antennas == baselines.antenna_id2[i])[0]
+
+        if index1 == 0:
+            baseline_weights1 = 0
+        else:
+            baseline_weights1 = baseline_weights[index1 - 1, :]
+
+        if index2 == 0:
+            baseline_weights2 = 0
+        else:
+            baseline_weights2 = baseline_weights[index2 - 1, :]
+        u_u_weights[i, :] = (baseline_weights1 + baseline_weights2) / 2
+
+    u_bins = numpy.linspace(0, numpy.max(baseline_lengths), 101)
+
+    sorted_indices = numpy.argsort(baseline_lengths)
+    sorted_weights = u_u_weights[sorted_indices, :][:, sorted_indices]
+
+    bin_indices = numpy.digitize(baseline_lengths[sorted_indices], u_bins)
+
     if grid_weights:
-        u_u_weights = numpy.zeros((len(baseline_lengths), len(baseline_lengths)))
-        baselines = telescope.baseline_table
-        antennas = telescope.antenna_positions.antenna_ids
-        for i in range(len(baseline_lengths)):
-            index1 = numpy.where(antennas == baselines.antenna_id1[i])[0]
-            index2 = numpy.where(antennas == baselines.antenna_id2[i])[0]
-
-            if index1 == 0:
-                baseline_weights1 = 0
-            else:
-                baseline_weights1 = baseline_weights[index1 - 1, :]
-
-            if index2 == 0:
-                baseline_weights2 = 0
-            else:
-                baseline_weights2 = baseline_weights[index2 - 1, :]
-            u_u_weights[i, :] = (baseline_weights1 + baseline_weights2)/2
-
-        u_bins = numpy.linspace(0, numpy.max(baseline_lengths), 101)
-
-
-        sorted_indices = numpy.argsort(baseline_lengths)
-        sorted_weights = u_u_weights[sorted_indices, :][:, sorted_indices]
-        fig_cal, axes_cal = pyplot.subplots(1,2)
+        fig_cal, axes_cal = pyplot.subplots(1,2, figsize = (100, 50))
         cal_plot = axes_cal[0].imshow(u_u_weights, origin = 'lower', interpolation = 'none')
         axes_cal[0].set_xlabel("Uncalibrated Baseline Index")
         axes_cal[0].set_ylabel("Calibrated Baseline Index")
-        axes_cal[0].set_title("Baseline-Baseline' Weights Quadrature")
+        axes_cal[0].set_title("Quadrature Added Real and Imaginary Weights")
         colorbar(cal_plot)
 
-
-        bin_indices = numpy.digitize(baseline_lengths[sorted_indices], u_bins)
-
         sorted_plot = axes_cal[1].imshow(sorted_weights, interpolation='none', origin='lower')
-        #axes_cal[1].set_xlabel("Uncalibrated Baseline Index")
-        #axes_cal[1].set_ylabel("Calibrated Baseline Index")
-        axes_cal[1].set_title(" Sorted Baseline-Baseline' Weights")
+        axes_cal[1].set_xlabel("Uncalibrated Baseline Index")
+        axes_cal[1].set_title(" Baseline Length Sorted Weights")
         colorbar(sorted_plot)
 
+        for i in range(len(bin_indices)):
+            if i == 0:
+                pass
+            elif bin_indices[i] == bin_indices[i-1]:
+                pass
+            else:
+                axes_cal[1].axvline(i, linestyle = "-", color = 'gray', alpha = 0.4 )
+                axes_cal[1].axhline(i, linestyle = "-", color = 'gray', alpha = 0.4)
+
+    if binned_weights:
         uu1, uu2 = numpy.meshgrid(baseline_lengths, baseline_lengths)
         flattened_weights = u_u_weights.flatten()
         flattened_uu1 = uu1.flatten()
