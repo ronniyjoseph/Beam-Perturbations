@@ -21,7 +21,7 @@ def main():
     plot_array_matrix = False
     plot_inverse_matrix = False
     plot_weights = False
-    grid_weights = False
+    grid_weights = True
     binned_weights = True
     telescope = RadioTelescope(load=True, path=path)
     baseline_lengths = numpy.sqrt(telescope.baseline_table.u_coordinates**2 + telescope.baseline_table.v_coordinates**2)
@@ -57,15 +57,22 @@ def main():
 
     baseline_weights = numpy.sqrt((numpy.abs(inverse_array_matrix[::2, ::2])**2 +
                                    numpy.abs(inverse_array_matrix[1::2, 1::2])**2))
+    print(f"Every Tile sees {len(baseline_weights[0,:][baseline_weights[0, :] > 1e-4])}")
+
     # baseline_weights = numpy.sqrt(numpy.abs(inverse_array_matrix[:int(len(telescope.antenna_positions.antenna_ids) - 1), :int(len(baseline_lengths))])**2 + \
     #                    numpy.abs(inverse_array_matrix[int(len(telescope.antenna_positions.antenna_ids) -1 ):, :int(len(baseline_lengths)):])**2)
     if plot_weights:
         figure_weights, axes_weights = pyplot.subplots(1,1)
-        weights_plot = axes_weights.imshow(baseline_weights)
+        normalised_weights = axes_weights.imshow(baseline_weights)
         axes_weights.set_title("Antenna Baseline Weights")
-        colorbar(weights_plot)
+        colorbar(normalised_weights)
 
-    u_u_weights = numpy.zeros((len(baseline_lengths), len(baseline_lengths)))
+        # blaah = numpy.unique(baseline_weights)
+        # figblaah, axblaah = pyplot.subplots(1,1)
+        # axblaah.hist(baseline_weights.flatten(), bins = 100)
+        # axblaah.set_yscale('log')
+
+    uu_weights = numpy.zeros((len(baseline_lengths), len(baseline_lengths)))
     baselines = telescope.baseline_table
     antennas = telescope.antenna_positions.antenna_ids
     for i in range(len(baseline_lengths)):
@@ -81,18 +88,24 @@ def main():
             baseline_weights2 = 0
         else:
             baseline_weights2 = baseline_weights[index2 - 1, :]
-        u_u_weights[i, :] = (baseline_weights1 + baseline_weights2) / 2
+        uu_weights[i, :] = numpy.sqrt((baseline_weights1**2 + baseline_weights2**2))
 
     u_bins = numpy.linspace(0, numpy.max(baseline_lengths), 101)
-
+    bin_size = (u_bins.max() - u_bins.min())/len(u_bins)
     sorted_indices = numpy.argsort(baseline_lengths)
-    sorted_weights = u_u_weights[sorted_indices, :][:, sorted_indices]
+    sorted_weights = uu_weights[sorted_indices, :][:, sorted_indices]
 
     bin_indices = numpy.digitize(baseline_lengths[sorted_indices], u_bins)
+    print(f"A uncalibrated baseline sees  {len(uu_weights[:, 190][uu_weights[:, 190] > 1e-4])}")
+    print(f"A calibrated baseline sees {len(uu_weights[190, :][uu_weights[190, :] > 1e-4])}")
+
+    print(f"A sorted uncalibrated baseline sees  {len(sorted_weights[:, 2489][sorted_weights[:, 2489] > 1e-4])}")
+    print(f"A sorted calibrated baseline sees {len(sorted_weights[190, :][sorted_weights[190, :] > 1e-4])}")
+
 
     if grid_weights:
         fig_cal, axes_cal = pyplot.subplots(1,2, figsize = (100, 50))
-        cal_plot = axes_cal[0].imshow(u_u_weights, origin = 'lower', interpolation = 'none')
+        cal_plot = axes_cal[0].imshow(uu_weights, origin = 'lower', interpolation = 'none')
         axes_cal[0].set_xlabel("Uncalibrated Baseline Index")
         axes_cal[0].set_ylabel("Calibrated Baseline Index")
         axes_cal[0].set_title("Quadrature Added Real and Imaginary Weights")
@@ -112,57 +125,90 @@ def main():
                 axes_cal[1].axvline(i, linestyle = "-", color = 'gray', alpha = 0.4 )
                 axes_cal[1].axhline(i, linestyle = "-", color = 'gray', alpha = 0.4)
 
+        # unique_values = numpy.unique(u_u_weights)
+        # figs, axs = pyplot.subplots(1,1)
+        # axs.hist(unique_values, bins = 1000)
+
     if binned_weights:
+        bin_counter = numpy.zeros_like(uu_weights)
+        bin_counter[uu_weights != 0] = 1
+
         uu1, uu2 = numpy.meshgrid(baseline_lengths, baseline_lengths)
-        flattened_weights = u_u_weights.flatten()
         flattened_uu1 = uu1.flatten()
         flattened_uu2 = uu2.flatten()
 
-        computed_weights = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins = u_bins ,
-                                                                 weights = flattened_weights)
-        bin_counter = numpy.zeros_like(u_u_weights)
-        bin_counter[u_u_weights != 0] = 1
+        computed_weights = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins=u_bins,
+                                             weights=uu_weights.flatten())
+        computed_counts = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins=u_bins,
+                                            weights = bin_counter.flatten())
 
-        computed_counts = numpy.histogram2d(flattened_uu1, flattened_uu2,  bins = u_bins ,
-                                                                  weights = bin_counter.flatten() )
+        figure_binned, axes_binned = pyplot.subplots(3, 3,  figsize = (12,  15), subplot_kw= dict(aspect = 'equal') )
 
-        figure_uu, axes_uu = pyplot.subplots(1,1)
-        norm = colors.LogNorm( )
+        summed_norm = colors.LogNorm()
+        counts_norm = colors.LogNorm()
+        averaged_norm = colors.LogNorm()
 
-        weights_plot = axes_uu.pcolor(u_bins, u_bins, computed_weights[0]/computed_counts[0], norm = norm)
-        # weights_plot = axes_uu.imshow(binned_weights, origin = 'lower', norm = norm)
+        summed = axes_binned[0, 1].pcolor(u_bins, u_bins, computed_weights[0], norm = summed_norm)
+        counts = axes_binned[0, 2].pcolor(u_bins, u_bins, computed_counts[0], norm = counts_norm)
+        averaged = axes_binned[0, 0].pcolor(u_bins, u_bins, computed_weights[0]/computed_counts[0]/bin_size**2,
+                                                      norm = averaged_norm)
 
-        cbar_uu = colorbar(weights_plot)
-        axes_uu.set_title(r"Averaged Computed Weights")
-        axes_uu.set_xlabel(r"$u\,[\lambda]$")
-        axes_uu.set_ylabel(r"$u^{\prime}\,[\lambda]$")
-        cbar_uu.set_label("Poorly Defined Weights")
-        figure_uu.savefig(plot_folder + "Baseline_Weights_uu.pdf")
+        averaged_cbar = colorbar(averaged)
+        counts_cbar = colorbar(counts)
+        summed_cbar = colorbar(summed)
+
+
+        axes_binned[0,1].set_title(r"Summed Weights")
+        axes_binned[0,2].set_title(r"Baseline Counts")
+        axes_binned[0,0].set_title(r"Averaged Weights")
+
+
 
         baseline_pdf = numpy.histogram(baseline_lengths, bins = u_bins, density = True)
+
         ww1, ww2 = numpy.meshgrid(baseline_pdf[0], baseline_pdf[0])
-        norm = colors.LogNorm( )
+        summed_anorm = colors.LogNorm( )
+        counts_anorm = colors.LogNorm( )
+        averaged_anorm = colors.LogNorm( )
 
-        approx_weights = ww1*ww2
-        figure_approx, axes_approx = pyplot.subplots(1,1)
-        dirty_plot = axes_approx.pcolor(u_bins, u_bins , approx_weights, norm = norm)
+        approx_sum = convolve2d(numpy.diag(baseline_pdf[0]), ww1, mode = 'same')
+            #convolve2d(numpy.diag(baseline_pdf[0])*bin_size**2*len(baseline_lengths)**2, ww1*ww2*bin_size**2*len(baseline_lengths)**2, mode = 'same')*ww1*ww2*bin_size**2*len(baseline_lengths)**2
+            # convolve2d(ww2, convolve2d(numpy.diag(baseline_pdf[0]), ww1, mode = 'same'), mode='same')# (ww1*ww2)*bin_size**2*len(baseline_lengths)
+        approx_counts = (ww1*ww2)*bin_size**2*len(baseline_lengths)**2
+        approx_averaged = approx_sum/approx_counts
 
+        averaged_aplot = axes_binned[1, 0].pcolor(u_bins, u_bins , approx_averaged, norm = averaged_anorm)
+        sum_aplot = axes_binned[1, 1].pcolor(u_bins, u_bins, approx_sum, norm=summed_anorm)
+        counts_aplot = axes_binned[1, 2].pcolor(u_bins, u_bins, approx_counts, norm=counts_anorm)
 
-        # dirty_plot = axes_dirty.imshow(ww1*ww2, origin = 'lower', norm=norm)
+        acbar_sum = colorbar(sum_aplot)
+        acbar_averaged = colorbar(averaged_aplot)
+        acbar_counts = colorbar(counts_aplot)
 
-        cbar_dirty = colorbar(dirty_plot)
-        axes_approx.set_title(r"Approximated Weights")
-        axes_approx.set_xlabel(r"$u\,[\lambda]$")
-        axes_approx.set_ylabel(r"$u^{\prime}\,[\lambda]$")
-        cbar_dirty.set_label("Poorly Defined Weights")
+        axes_binned[2, 0].set_title(r"Differences")
 
-        fig, ax = pyplot.subplots(1,1)
-        blaah = ax.pcolor(u_bins, u_bins, computed_weights[0] -approx_weights)
-        ax.set_xlabel(r"$u\,[\lambda]$")
-        ax.set_ylabel(r"$u^{\prime}\,[\lambda]$")
+        blaah = axes_binned[2, 0].pcolor(u_bins, u_bins, computed_weights[0]/computed_counts[0] - approx_sum)
+
+        axes_binned[2, 0].set_ylabel(r"$u^{\prime}\,[\lambda]$")
         colorbar(blaah)
 
-        figure_approx.savefig(plot_folder + "Baseline_Weights_uu_from_PDF.pdf")
+        axes_binned[0, 0].set_ylabel(r"$u^{\prime}\,[\lambda]$")
+        axes_binned[1, 0].set_ylabel(r"$u^{\prime}\,[\lambda]$")
+        axes_binned[2, 0].set_ylabel(r"$u^{\prime}\,[\lambda]$")
+
+
+        axes_binned[2, 0].set_xlabel(r"$u\,[\lambda]$")
+        axes_binned[1, 1].set_xlabel(r"$u\,[\lambda]$")
+        axes_binned[1, 2].set_xlabel(r"$u\,[\lambda]$")
+
+
+
+        axes_binned[2, 2].axis('off')
+        axes_binned[2, 1].axis('off')
+
+        figure_binned.savefig(plot_folder + "Baseline_Weights_uu.pdf")
+
+
     pyplot.show()
     return
 
