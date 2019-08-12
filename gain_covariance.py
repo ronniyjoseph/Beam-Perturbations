@@ -33,6 +33,7 @@ def gain_variance(nu, path):
 
     ratios = numpy.zeros((3, len(mwa_telescope.antenna_positions.antenna_ids), len(nu)))
     variance = numpy.zeros((3, len(nu)))
+
     for k in range(len(tile_id)):
     # select baseline table indices in which tile_id is present
         baseline_indices = numpy.where((mwa_telescope.baseline_table.antenna_id1 == tile_id[k]) |
@@ -55,22 +56,8 @@ def gain_variance(nu, path):
             #print("noise", numpy.diag(data_covariance))
 
         variance[k, :] = numpy.sqrt(1/(2*numpy.real(numpy.sum(ratios[k,...], axis=0))))
-        #pyplot.plot(nu/1e6, variance[k, ...], label =f"Antenna {tile_id}")
 
 
-    #nu_cov = numpy.diag(variance)
-
-    #window_function = blackman_harris_taper(nu)
-    #taper1, taper2 = numpy.meshgrid(window_function, window_function)
-    #dftmatrix, eta = dft_matrix(nu)
-
-    #tapered_cov = nu_cov * taper1 * taper2
-    #eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
-
-    #pyplot.plot(nu, variance)
-    #pyplot.show()
-    #pyplot.plot(eta, numpy.diag(numpy.real(eta_cov)))
-    #pyplot.show()
     alt_variance = numpy.diag(data_covariance)/(2*signal**2*127*(nu/nu[0])**(-2*0.5))
     #pyplot.plot(nu/1e6, alt_variance, label = "analytic")
     #pyplot.legend()
@@ -80,25 +67,15 @@ def gain_variance(nu, path):
 
 
 def calculate_residual_2DPS(u, nu, plot = False, save = False, plot_name = "total_ps.pdf", path  =""):
-
-
-
     window_function = blackman_harris_taper(nu)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
 
     dftmatrix, eta = dft_matrix(nu)
 
     variance = numpy.zeros((len(u), len(nu)))
-    #figure = pyplot.figure(figsize=(23,4))
-    #axes = figure.add_subplot((111))
-
-    ripple = numpy.sin(nu/nu[0]*500 + (nu/nu[0])**2*50)
-    ripple /=ripple
-    pyplot.plot(nu, ripple)
-    #pyplot.show()
-    ripple_cov = numpy.outer(ripple, ripple)
 
     gainvariance = numpy.sqrt(gain_variance(nu, path))
+
     gain_covariance = numpy.outer(gainvariance, gainvariance)*ripple_cov
 
     pyplot.imshow(gain_covariance)
