@@ -172,6 +172,7 @@ def main():
         averaged_anorm = colors.LogNorm( )
 
         approx_sum = convolve2d(numpy.diag(baseline_pdf[0]), ww1, mode = 'same')
+
             #convolve2d(numpy.diag(baseline_pdf[0])*bin_size**2*len(baseline_lengths)**2, ww1*ww2*bin_size**2*len(baseline_lengths)**2, mode = 'same')*ww1*ww2*bin_size**2*len(baseline_lengths)**2
             # convolve2d(ww2, convolve2d(numpy.diag(baseline_pdf[0]), ww1, mode = 'same'), mode='same')# (ww1*ww2)*bin_size**2*len(baseline_lengths)
         approx_counts = (ww1*ww2)*bin_size**2*len(baseline_lengths)**2
@@ -203,8 +204,7 @@ def main():
 
 
 
-        axes_binned[2, 2].axis('off')
-        axes_binned[2, 1].axis('off')
+
 
         figure_binned.savefig(plot_folder + "Baseline_Weights_uu.pdf")
 
