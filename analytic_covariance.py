@@ -25,14 +25,7 @@ def sky_covariance(u, v, nu, S_low = 0.1, S_mid = 1, S_high = 1):
     mu_2_r = moment_returner(2, S_low=S_low, S_mid=S_mid, S_high = S_high)
     sky_covariance = 2*numpy.pi*(nn1*nn2/numpy.min(nu)**2)**-gamma * mu_2_r *Sigma *numpy.exp(-2*numpy.pi**2*(u**2 + v**2)*(nn1 - nn2)**2/numpy.min(nu)**2*Sigma)
 
-    #pyplot.figure()
-    #pyplot.imshow(Sigma)
-    #pyplot.colorbar()
-
     return sky_covariance
-
-
-
 
 def beam_covariance(u, v, nu, dx =1):
     x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
@@ -40,9 +33,6 @@ def beam_covariance(u, v, nu, dx =1):
 
     y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
                          -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dx
-
-    #x_offsets = x_offsets[:2]
-    #y_offsets = y_offsets[:2]
 
     nn1, nn2, xx = numpy.meshgrid(nu, nu, x_offsets)
     nn1, nn2, yy = numpy.meshgrid(nu, nu, y_offsets)
@@ -52,10 +42,6 @@ def beam_covariance(u, v, nu, dx =1):
 
     mu_1_m = moment_returner(1, S_low = 1)
     mu_2_m = moment_returner(2, S_low = 1)
-
-
-    #print("residual", mu_2_r)
-    #print("model", mu_2_m)
 
     width_1_tile = numpy.sqrt(2)*beam_width(nn1)
     width_2_tile = numpy.sqrt(2)*beam_width(nn2)
@@ -79,34 +65,12 @@ def beam_covariance(u, v, nu, dx =1):
     sigma_D2 = width_2_tile**2*width_2_dipole**2/(width_2_tile**2 + width_2_dipole**2)
 
 
-    #fig = pyplot.figure(figsize=(25,5))
-    #axesA = fig.add_subplot(151)
-    # axesB = fig.add_subplot(152)
-    # axesC = fig.add_subplot(153)
-    # axesD1 = fig.add_subplot(154)
-    # axesD2 = fig.add_subplot(155)
-    #
-    # plotA = axesA.imshow(sigma_A[:, :, 8 ])
-    # plotB = axesB.imshow(sigma_B[:, :, 8])
-    # plotC = axesC.imshow(sigma_C[:, :, 8])
-    # plotD1 = axesD1.imshow(sigma_D1[:, :, 8])
-    # plotD2 = axesD2.imshow(sigma_D2[:, :, 8])
-    #
-    # colorbar(plotA)
-    # colorbar(plotB)
-    # colorbar(plotC)
-    # colorbar(plotD1)
-    # colorbar(plotD2)
-    #
-    # pyplot.show()
-
     A = 2 * numpy.pi *(mu_2_m + mu_2_r)/len(y_offsets) ** 3 *numpy.sum( sigma_A *numpy.exp(-2 * numpy.pi ** 2 * sigma_A * (
         (u / nu[0] + xx /c) ** 2 + (v / nu[0] + yy /c)**2)*(nn1 - nn2)**2.), axis=-1)
 
     B = -2*numpy.pi*mu_2_r/len(y_offsets)**2*numpy.sum(sigma_B*numpy.exp(-2 * numpy.pi ** 2 * sigma_B * (
             (u*(nn1 - nn2) / nu[0] + xx/c*nn2)**2 + (v*(nn1 - nn2)**2 / nu[0] + yy/c*nn2)**2)), axis = -1)
 
-    #-2*numpy.pi*mu_2_r/len(y_offsets)**2*
     C = -2*numpy.pi*mu_2_r/len(y_offsets)**2*numpy.sum(sigma_C*numpy.exp(-2 * numpy.pi ** 2 * sigma_C * (
             (u*(nn1 - nn2) / nu[0] + xx/c*nn2)**2 + (v*(nn1 - nn2)**2 / nu[0] + yy/c*nn1)**2)), axis = -1)
 
@@ -118,12 +82,6 @@ def beam_covariance(u, v, nu, dx =1):
         numpy.exp(-2*numpy.pi**2*sigma_D1*((u*nn1/nu[0] - xx/c*nn1)**2 +(v*nn1/nu[0] - yy/c*nn1)**2)), axis = -1)*\
         numpy.sum(numpy.exp(-2*numpy.pi**2*sigma_D2*((u * nn2 / nu[0] - xx / c * nn2) ** 2 +
                                                                   (v * nn2 / nu[0] - yy / c * nn2) ** 2)), axis=-1)
-
-
-    #zeta = mu_2_r*sigma_B
-    #pyplot.figure()
-    #pyplot.imshow(zeta[:, : , -1])
-    #pyplot.colorbar()
 
     return (A + B + C + D + E)
 
@@ -147,7 +105,6 @@ def dft_matrix(nu):
 
 def blackman_harris_taper(frequency_range):
     window = signal.blackmanharris(len(frequency_range))
-
     return window
 
 
