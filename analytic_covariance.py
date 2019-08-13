@@ -94,18 +94,24 @@ def moment_returner(n_order, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, S_low=40
 
 
 def dft_matrix(nu):
-
     dft = numpy.exp(-2 * numpy.pi * 1j / len(nu)) ** numpy.arange(0, len(nu), 1)
     dftmatrix = numpy.vander(dft, increasing=True)/numpy.sqrt(len(nu))
 
     eta = numpy.arange(0, len(nu), 1)/(nu.max() - nu.min())
-
     return dftmatrix, eta
 
 
 def blackman_harris_taper(frequency_range):
     window = signal.blackmanharris(len(frequency_range))
     return window
+
+def compute_ps_variance(taper1, taper2, covariance, dft_matrix):
+    tapered_cov = covariance * taper1 * taper2
+    eta_cov = numpy.dot(numpy.dot(dft_matrix.conj().T, tapered_cov), dft_matrix)
+    variance = numpy.diag(numpy.real(eta_cov))
+
+    return variance
+
 
 
 def calculate_beam_PS(u, nu):
@@ -245,14 +251,15 @@ def calculate_sky_PS(u, nu, title = "Sky", save = False, plot_name = "sky_ps.pdf
 
     return
 
+def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title = None, save = False, figure = None,
+            axes = None, save_name = "plot.pdf"):
 
-
-def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title = None, save = False, save_name = "plot.pdf"):
     axes_label_font = 20
     tickfontsize = 15
-
-    figure = pyplot.figure(figsize = (11,7))
-    axes = figure.add_subplot(111)
+    if figure is not None:
+        figure = pyplot.figure(figsize = (11,7))
+    if axes is not None:
+        axes = figure.add_subplot(111)
 
     if cosmological:
         central_frequency = nu[int(len(nu)/2)]
@@ -347,7 +354,6 @@ def test_dft_on_signal():
     pyplot.show()
 
     return
-
 
 
 
