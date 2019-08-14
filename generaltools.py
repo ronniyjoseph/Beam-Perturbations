@@ -131,7 +131,6 @@ def from_jansky_to_milikelvin(measurements_jansky, frequencies, nu_emission = 1.
     conversion = (A_eff/(2*Boltzmann*1e26))**2*x**4/G**2/(volume)*1e6
     temperature = measurements_jansky*conversion
 
-    print("Conversion", conversion)
     return temperature
 
 
