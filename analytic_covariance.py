@@ -251,15 +251,12 @@ def calculate_sky_PS(u, nu, title = "Sky", save = False, plot_name = "sky_ps.pdf
 
     return
 
-def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title = None, save = False, figure = None,
-            axes = None, save_name = "plot.pdf"):
+def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title = None, save = False, axes = None,
+            save_name = "plot.pdf", axes_label_font = 20, tickfontsize = 15, xlabel_show = False, ylabel_show = False,
+            zlabel_show = False):
 
-    axes_label_font = 20
-    tickfontsize = 15
-    if figure is not None:
-        figure = pyplot.figure(figsize = (11,7))
-    if axes is not None:
-        axes = figure.add_subplot(111)
+    if axes is None:
+        figure, axes = pyplot.subplots(1,1)
 
     if cosmological:
         central_frequency = nu[int(len(nu)/2)]
@@ -290,36 +287,38 @@ def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title 
         axes.set_ylim(eta_bins[1], eta_bins.max())
 
     if PS.min() < -3e-5:
-        print(f"SymLog Norm scaled Data: {PS.min()}")
+        print(f"SymLog Norm scaled Data: {PS.min()} to {PS.max()}")
         symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
         norm = colors.SymLogNorm(linthresh=symlog_threshold, linscale=1, vmin=-symlog_max, vmax=symlog_max)
         colormap = "coolwarm"
     else:
-        print("LogNorm Scaled Data:")
         z_values[PS < 0 ] = numpy.abs(z_values[PS < 0 ])
+        print(z_values.min(), z_values.max() )
+
         #symlog_min, symlog_max, symlog_threshold, symlog_scale = symlog_bounds(numpy.real(z_values))
-        #norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
+        norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
         colormap = "viridis"
     if title is not None:
         axes.set_title(title)
 
-    print(numpy.median(z_values))
     #psplot = axes.pcolor(x_values, y_values, z_values.T, norm=norm, cmap=colormap, rasterized = True)
-    psplot = axes.pcolor(x_values, y_values, z_values.T, cmap=colormap, rasterized=True)
+    psplot = axes.pcolor(x_values, y_values, z_values.T, cmap=colormap, rasterized=True, norm = norm)
     cax = colorbar(psplot)
 
     axes.set_xscale('log')
     axes.set_yscale('log')
 
-    axes.set_xlabel(x_label, fontsize = axes_label_font)
-    axes.set_ylabel(y_label, fontsize = axes_label_font)
-    cax.set_label(z_label, fontsize = axes_label_font)
+    if xlabel_show:
+        axes.set_xlabel(x_label, fontsize = axes_label_font)
+    if ylabel_show:
+        axes.set_ylabel(y_label, fontsize = axes_label_font)
+    if zlabel_show:
+        cax.set_label(z_label, fontsize = axes_label_font)
 
     axes.tick_params(axis='both', which='major', labelsize=tickfontsize)
     cax.ax.tick_params(axis='both', which='major', labelsize=tickfontsize)
 
     if save:
-        print(save_name)
         figure.savefig(save_name)
     else:
         pass
@@ -355,6 +354,48 @@ def test_dft_on_signal():
 
     return
 
+def residual_ps_error(u_range, frequency_range, residuals='both', path="./", plot=True):
+    cal_variance = numpy.zeros((len(u_range), len(frequency_range)))
+    raw_variance = numpy.zeros((len(u_range), len(frequency_range)))
+
+    model_variance = numpy.diag(sky_covariance(0, 0, frequency_range, S_low=1, S_high=10))
+    model_normalisation = numpy.sqrt(numpy.outer(model_variance, model_variance))
+    gain_error_covariance = numpy.zeros((len(u_range), len(frequency_range), len(frequency_range)))
+
+    # Compute all residual to model ratios at different u scales
+    for u_index in range(len(u_range)):
+        if residuals == "sky":
+            residual_covariance = sky_covariance(u_range[u_index], v=0, nu =frequency_range)
+        elif residuals == "beam":
+            residual_covariance = beam_covariance(u_range[u_index], v=0, nu=frequency_range)
+        elif residuals == 'both':
+            residual_covariance = sky_covariance(u_range[u_index], v=0, nu =frequency_range) + \
+                                  beam_covariance(u_range[u_index], v=0, nu=frequency_range)
+        gain_error_covariance[u_index, :, :] = residual_covariance / model_normalisation
+
+    gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) / (127*8000)**2
+    window_function = blackman_harris_taper(frequency_range)
+    taper1, taper2 = numpy.meshgrid(window_function, window_function)
+    dftmatrix, eta = dft_matrix(frequency_range)
+
+    # Compute the gain corrected residuals at all u scales
+    for i in range(len(u_range)):
+        if residuals == "sky":
+            residual_covariance = sky_covariance(u_range[i], 0, frequency_range)
+        elif residuals == "beam":
+            residual_covariance = beam_covariance(u_range[i], v=0, nu=frequency_range)
+        elif residuals == 'both':
+            residual_covariance = sky_covariance(u_range[i], 0, frequency_range) + \
+                                  beam_covariance(u_range[i], v=0, nu=frequency_range)
+
+        model_covariance = sky_covariance(u_range[i], 0, frequency_range, S_low=1, S_high=5)
+
+        nu_cov = 2 * gain_averaged_covariance * model_covariance + (1 + 2*gain_averaged_covariance)*residual_covariance
+
+        cal_variance[i, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
+        raw_variance[i, :] = compute_ps_variance(taper1, taper2, residual_covariance, dftmatrix)
+
+    return eta[:int(len(eta) / 2)], raw_variance[:, :int(len(eta) / 2)], cal_variance[:, :int(len(eta) / 2)]
 
 
 
