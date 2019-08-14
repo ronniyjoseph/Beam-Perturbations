@@ -1,93 +1,101 @@
 import os
 import numpy
 from matplotlib import pyplot
+from matplotlib import colors
 
-from analytic_covariance import dft_matrix
-from analytic_covariance import blackman_harris_taper
-from analytic_covariance import sky_covariance
-from analytic_covariance import beam_covariance
-from analytic_covariance import plot_PS
-from analytic_covariance import compute_ps_variance
+from analytic_covariance import residual_ps_error
 from generaltools import from_eta_to_k_par
+from generaltools import from_u_to_k_perp
+from generaltools import from_jansky_to_milikelvin
+from generaltools import colorbar
 
-def main():
+def main(labelfontsize = 10, ticksize= 10):
     u_range = numpy.logspace(0, numpy.log10(200), 100)
-    frequency_range= numpy.linspace(135,165, 100)*1e6
 
-    sky_only_raw, sky_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
-    beam_only_raw, beam_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
-    sky_and_beam_raw, sky_and_beam_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
+    # 100 frequency channels is fine for now, maybe later do a higher number to push up the k_par range
+    frequency_range = numpy.linspace(135, 165, 101) * 1e6
 
+    eta, sky_only_raw, sky_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
+    #eta, beam_only_raw, beam_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
+    eta, sky_and_beam_raw, sky_and_beam_cal = residual_ps_error(u_range, frequency_range, residuals='both')
 
-    figure, axes = pyplot.subplots()
+    figure, axes = pyplot.subplots(1, 4, figsize = (20, 5))
+    ps_norm = plot_power_spectrum(u_range, eta, frequency_range, sky_and_beam_cal, title="Sky + Beam", axes=axes[1],
+                                  axes_label_font= labelfontsize, tickfontsize = ticksize, return_norm = True, colorbar_show=True, xlabel_show= True)
 
-    plot_PS(u, eta[:int(len(eta) / 2)], frequency_range, cal_variance[:, :int(len(eta) / 2)], cosmological=True,
-    #             title="Calibrated Residuals", save=True, save_name=path + "/residual_calibrated_PS.pdf")
-    #     plot_PS(u, eta[:int(len(eta)/2)], frequency_range, raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-    #             title="Uncalibrated Residuals", save=True, save_name=path + "/residual_uncalibrated_PS.pdf")
-    #     plot_PS(u, eta[:int(len(eta)/2)], frequency_range, cal_variance[:, :int(len(eta) / 2)] - raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-    #             title="Difference", save=True, save_name=path + "/residual_difference_PS.pdf")
+    plot_power_spectrum(u_range, eta, frequency_range, sky_only_cal, title="Sky Only", axes=axes[0],
+                        axes_label_font= labelfontsize, tickfontsize = ticksize, ylabel_show= True, norm=ps_norm,colorbar_show=True, xlabel_show= True)
+
+    # Plot Difference with uncalibrated
+    diff_norm = colors.LogNorm(vmin=1e0, vmax=1e14)
+    difference_label = r"Difference [mK$^2$ Mpc$^3$ ]"
+    plot_power_spectrum(u_range, eta, frequency_range, sky_and_beam_cal - sky_only_cal,
+                        axes=axes[2], axes_label_font= labelfontsize, tickfontsize = ticksize,
+                        norm=ps_norm, colorbar_show=True,xlabel_show= True, title="Difference")
+
+    ratio_norm = colors.LogNorm(1e-2, 1e2)
+    # Plot ratios with uncalibrated
+    plot_power_spectrum(u_range, eta, frequency_range, (sky_and_beam_cal - sky_only_cal)/sky_only_cal,
+             ratio= True, axes=axes[3], axes_label_font= labelfontsize, tickfontsize = ticksize,
+            xlabel_show= True, colorbar_show=True, norm =ratio_norm, title="Ratio")
+
+    figure.tight_layout()
+    pyplot.show()
 
     return
 
 
-def residual_ps_error(u_range, frequency_range, residuals ='both', path="./", plot = True):
-    cal_variance = numpy.zeros((len(u_range), len(frequency_range)))
-    raw_variance = numpy.zeros((len(u_range), len(frequency_range)))
 
-    model_variance = numpy.diag(sky_covariance(0,0, frequency_range, S_low = 1, S_high = 10))
-    model_normalisation = numpy.sqrt(numpy.outer(model_variance, model_variance))
-    gain_error_covariance = numpy.zeros((len(u_range), len(frequency_range), len(frequency_range)))
 
-    #Compute all residual to model ratios at different u scales
-    for u_index in range(len(u_range)):
-        if residuals == "sky":
-            residual_covariance = sky_covariance(u_range[u_index], 0, frequency_range)
-        elif residuals == "beam":
-            residual_covariance = beam_covariance(u_range[u_index], v=0, nu=frequency_range)
-        elif residuals == 'both':
-            residual_covariance = sky_covariance(u_range[u_index], 0, frequency_range) + \
-                                  beam_covariance(u_range[u_index], v=0, nu=frequency_range)
-        gain_error_covariance[u_index, :, :] = residual_covariance/model_normalisation
 
-    gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) / (baseline_table.number_of_baselines**4)
+def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axes=None,
+                        colormap = "viridis", axes_label_font=20, tickfontsize=15, xlabel_show=False, ylabel_show=False,
+                        zlabel_show=False, z_label = None, return_norm = False, colorbar_show = False, ratio = False):
 
-    window_function = blackman_harris_taper(frequency_range)
-    taper1, taper2 = numpy.meshgrid(window_function, window_function)
-    dftmatrix, eta = dft_matrix(frequency_range)
+    central_frequency = nu[int(len(nu) / 2)]
+    x_values = from_u_to_k_perp(u_bins, central_frequency)
+    y_values = from_eta_to_k_par(eta_bins, central_frequency)
 
-    #Compute the gain corrected residuals at all u scales
-    for i in range(len(u_range)):
-        if residuals == "sky":
-            residual_covariance = sky_covariance(u_range[i], 0, frequency_range)
-        elif residuals == "beam":
-            residual_covariance = beam_covariance(u_range[i], v=0, nu=frequency_range)
-        elif residuals == 'both':
-            residual_covariance = sky_covariance(u_range[i], 0, frequency_range) + \
-                                  beam_covariance(u_range[i], v=0, nu=frequency_range)
+    if ratio:
+        z_values = data
+    else:
+        z_values = from_jansky_to_milikelvin(data, nu)
 
-        model_covariance = sky_covariance(u_range[i], 0, frequency_range, S_low=1, S_high= 5)
 
-        nu_cov = 2*gain_averaged_covariance*model_covariance + (1 + 2*gain_averaged_covariance)*residual_covariance
+    x_label = r"$k_{\perp}$ [Mpc$^{-1}$]"
+    y_label = r"$k_{\parallel}$ [Mpc$^{-1}$]"
+    if z_label is None:
+        z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
 
-        cal_variance[i, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
-        raw_variance[i, :] = compute_ps_variance((taper1, taper2, residual_covariance, dftmatrix)
+    axes.set_xlim(1e-3, 1e-1)
+    axes.set_ylim(9e-3, 5e-1)
 
-    return raw_variance, cal_variance
+    z_values[data < 0] = numpy.abs(z_values[data < 0])
+    if norm is None:
+        norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
 
-    # if plot:
-    #     plot_PS(u, eta[:int(len(eta)/2)], frequency_range, cal_variance[:, :int(len(eta) / 2)], cosmological=True,
-    #             title="Calibrated Residuals", save=True, save_name=path + "/residual_calibrated_PS.pdf")
-    #     plot_PS(u, eta[:int(len(eta)/2)], frequency_range, raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-    #             title="Uncalibrated Residuals", save=True, save_name=path + "/residual_uncalibrated_PS.pdf")
-    #     plot_PS(u, eta[:int(len(eta)/2)], frequency_range, cal_variance[:, :int(len(eta) / 2)] - raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-    #             title="Difference", save=True, save_name=path + "/residual_difference_PS.pdf")
-    #     plot_PS(u, eta[:int(len(eta)/2)], frequency_range,
-    #             (cal_variance[:, :int(len(eta) / 2)] - raw_variance[:, :int(len(eta) / 2)])/raw_variance[:, :int(len(eta) / 2)], cosmological=True,
-    #             title="Ratio", save=True, save_name=path + "/residual_ratio_PS.pdf", ratio=True)
-    #
-    #     pyplot.show()
+    if title is not None:
+        axes.set_title(title)
+
+    psplot = axes.pcolor(x_values, y_values, z_values.T, cmap=colormap, rasterized=True, norm=norm)
+    if colorbar_show:
+        cax = colorbar(psplot)
+        cax.ax.tick_params(axis='both', which='major', labelsize=tickfontsize)
+        cax.set_label(z_label, fontsize=axes_label_font)
+
+    axes.set_xscale('log')
+    axes.set_yscale('log')
+
+    if xlabel_show:
+        axes.set_xlabel(x_label, fontsize=axes_label_font)
+    if ylabel_show:
+        axes.set_ylabel(y_label, fontsize=axes_label_font)
+
+
+    axes.tick_params(axis='both', which='major', labelsize=tickfontsize)
+
+    return norm if return_norm else None
 
 
 if __name__ == "__main__":
-    main())
+    main()
