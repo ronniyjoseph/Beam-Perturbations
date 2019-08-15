@@ -1,5 +1,6 @@
 import numpy
 from numba import prange, njit
+from radiotelescope import ideal_gaussian_beam
 
 
 class SkyRealisation:
@@ -102,9 +103,8 @@ class SkyRealisation:
 
         return normalised_sky_image, l_coordinates
 
-
     def select_sources(self, indices):
-        selected_fluxes =self.fluxes[indices]
+        selected_fluxes = self.fluxes[indices]
         selected_l_coordinates = self.l_coordinates[indices]
         selected_m_coordinates = self.m_coordinates[indices]
         selected_spectral_indices = self.spectral_indices[indices]
@@ -113,15 +113,18 @@ class SkyRealisation:
 
         return sky_selection
 
-    def create_visibility_data(self, mode='analytic', interpolation='spline',
+    def create_visibility_data(self, baseline_table_object, frequency_channels, antenna_size, mode='analytic', interpolation='spline',
                                padding_factor=3, parallel=False):
 
         if mode == 'analytic':
-            pass
+            visibilities = create_visibilities_analytic(self, baseline_table=baseline_table_object,
+                                                        frequency_range=frequency_channels,
+                                                        antenna_diameter=antenna_size)
         elif mode == 'numerical':
             # check whether sky_image has already been created
+            print("Numerical Method is not yet supported")
             pass
-        return
+        return visibilities
 
 
 def stochastic_sky(seed=0, k1=4100, gamma1=1.59, k2=4100, \
@@ -180,3 +183,38 @@ def check_type_convert_to_array(input_values):
         converted = input_values
 
     return converted
+
+
+def create_visibilities_analytic(source_population, baseline_table, frequency_range, antenna_diameter=4):
+    observations = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range)), dtype=complex)
+
+    # pre-compute all apparent fluxes at all frequencies
+    apparent_flux = apparent_fluxes_numba(source_population, frequency_range, antenna_diameter)
+    numba_loop(observations, apparent_flux, source_population.l_coordinates,
+               source_population.m_coordinates, baseline_table.u(frequency_range),
+               baseline_table.v(frequency_range))
+
+    return observations
+
+
+@njit(parallel=True)
+def numba_loop(observations, fluxes, l_source, m_source, u_baselines, v_baselines):
+    for source_index in prange(len(fluxes)):
+        for baseline_index in range(u_baselines.shape[0]):
+            for frequency_index in range(u_baselines.shape[1]):
+                kernel = numpy.exp(
+                    -2j * numpy.pi * (u_baselines[baseline_index, frequency_index] * l_source[source_index] +
+                                      v_baselines[baseline_index, frequency_index] * m_source[source_index]))
+                observations[baseline_index, frequency_index] += fluxes[source_index, frequency_index] * kernel
+
+
+def apparent_fluxes_numba(source_population, frequency_range, antenna_diameter=4):
+    ff = numpy.tile(frequency_range, (len(source_population.fluxes), 1))
+    ss = numpy.tile(source_population.fluxes, (len(frequency_range), 1))
+    ll = numpy.tile(source_population.l_coordinates, (len(frequency_range), 1))
+    mm = numpy.tile(source_population.m_coordinates, (len(frequency_range), 1))
+
+    antenna_response = ideal_gaussian_beam(ll.T, mm.T, ff, diameter=antenna_diameter)
+
+    apparent_fluxes = antenna_response * numpy.conj(antenna_response) * ss.T
+    return apparent_fluxes.astype(complex)
