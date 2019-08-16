@@ -162,7 +162,7 @@ def broken_gaussian_beam(source_l, source_m, nu, faulty_dipole, diameter=4, epsi
     y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
                              -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dx
 
-    dipole_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter / 4.)
+    dipole_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter / 4., epsilon =epsilon)
     ideal_tile_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter)
     broken_beam = ideal_tile_beam - 1 / 16 * dipole_beam * numpy.exp(
         -2. * numpy.pi * 1j * (x_offsets[faulty_dipole] * numpy.abs(source_l) +
@@ -352,8 +352,6 @@ def xyz_position_creator(shape, verbose=False):
             print("Creating x- y- z-positions of a square array")
         x_coordinates = numpy.linspace(-shape[1], shape[1], shape[2])
         y_coordinates = numpy.linspace(-shape[1], shape[1], shape[2])
-
-        print(len(x_coordinates))
 
         block1 = numpy.zeros((len(x_coordinates) * len(y_coordinates), 4))
         k = 0
