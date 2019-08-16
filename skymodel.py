@@ -6,7 +6,7 @@ from radiotelescope import ideal_gaussian_beam
 class SkyRealisation:
 
     def __init__(self, sky_type, fluxes=0, l_coordinates=0, m_coordinates=0, spectral_indices=0,
-                 seed=0, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, flux_low=400e-3, flux_mid=1, flux_high=5.,
+                 seed=0, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, flux_low = 40e-3, flux_mid=1, flux_high=5.,
                  verbose=False):
 
         if verbose:
@@ -113,7 +113,7 @@ class SkyRealisation:
 
         return sky_selection
 
-    def create_visibility_data(self, baseline_table_object, frequency_channels, antenna_size, mode='analytic', interpolation='spline',
+    def create_visibility_model(self, baseline_table_object, frequency_channels, antenna_size, mode='analytic', interpolation='spline',
                                padding_factor=3, parallel=False):
 
         if mode == 'analytic':
@@ -216,5 +216,5 @@ def apparent_fluxes_numba(source_population, frequency_range, antenna_diameter=4
 
     antenna_response = ideal_gaussian_beam(ll.T, mm.T, ff, diameter=antenna_diameter)
 
-    apparent_fluxes = antenna_response * numpy.conj(antenna_response) * ss.T
-    return apparent_fluxes.astype(complex)
+    apparent_fluxes = antenna_response * ss.T
+    return apparent_fluxes
