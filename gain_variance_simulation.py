@@ -253,11 +253,11 @@ def get_observations_analytic(source_population, baseline_table, frequency_range
     return observations
 
 
-def get_observations_numba(source_population, baseline_table, frequency_range):
+def get_observations_numba(source_population, baseline_table, frequency_range, antenna_diameter = 4):
     observations = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range)), dtype=complex)
 
     #pre-compute all apparent fluxes at all frequencies
-    apparent_flux = apparent_fluxes_numba(source_population, frequency_range)
+    apparent_flux = apparent_fluxes_numba(source_population, frequency_range, antenna_diameter)
     numbafied_for_loop(observations, apparent_flux, source_population.l_coordinates,
                                       source_population.m_coordinates, baseline_table.u(frequency_range),
                                       baseline_table.v(frequency_range))
@@ -275,13 +275,13 @@ def numbafied_for_loop(observations, fluxes, l_source, m_source, u_baselines, v_
 
 
 
-def apparent_fluxes_numba(source_population, frequency_range):
+def apparent_fluxes_numba(source_population, frequency_range, antenna_diameter = 4):
     ff = numpy.tile(frequency_range, (len(source_population.fluxes), 1))
     ss = numpy.tile(source_population.fluxes, (len(frequency_range), 1 ))
     ll = numpy.tile(source_population.l_coordinates, (len(frequency_range), 1 ))
     mm = numpy.tile(source_population.m_coordinates, (len(frequency_range), 1 ))
 
-    antenna_response = ideal_gaussian_beam(ll.T, mm.T, ff)
+    antenna_response = ideal_gaussian_beam(ll.T, mm.T, ff, diameter=antenna_diameter)
 
     apparent_fluxes = antenna_response*numpy.conj(antenna_response)*ss.T
     return apparent_fluxes.astype(complex)

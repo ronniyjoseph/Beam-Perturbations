@@ -1,4 +1,3 @@
-import os
 import numpy
 from matplotlib import pyplot
 from matplotlib import colors
