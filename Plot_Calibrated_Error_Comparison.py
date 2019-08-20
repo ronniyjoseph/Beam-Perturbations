@@ -44,12 +44,10 @@ def main(labelfontsize = 10, ticksize= 10):
     return
 
 
-
-
-
 def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axes=None,
                         colormap = "viridis", axes_label_font=20, tickfontsize=15, xlabel_show=False, ylabel_show=False,
-                        zlabel_show=False, z_label = None, return_norm = False, colorbar_show = False, ratio = False):
+                        zlabel_show=False, z_label = None, return_norm = False, colorbar_show = False, ratio = False,
+                        diff = False, x_range = None, y_range = None):
 
     central_frequency = nu[int(len(nu) / 2)]
     x_values = from_u_to_k_perp(u_bins, central_frequency)
@@ -60,16 +58,21 @@ def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axe
     else:
         z_values = from_jansky_to_milikelvin(data, nu)
 
-
     x_label = r"$k_{\perp}$ [Mpc$^{-1}$]"
     y_label = r"$k_{\parallel}$ [Mpc$^{-1}$]"
     if z_label is None:
         z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
 
-    axes.set_xlim(1e-3, 1e-1)
-    axes.set_ylim(9e-3, 5e-1)
+    if x_range is None:
+        axes.set_xlim(1e-3, 1e-1)
+    if y_range is None:
+        axes.set_ylim(9e-3, 5e-1)
 
-    z_values[data < 0] = numpy.abs(z_values[data < 0])
+    if diff:
+        print(z_values.min())
+        pass
+    else:
+        z_values[data < 0] = numpy.nan
     if norm is None:
         norm = colors.LogNorm(vmin=numpy.real(z_values).min(), vmax=numpy.real(z_values).max())
 
@@ -89,7 +92,6 @@ def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axe
         axes.set_xlabel(x_label, fontsize=axes_label_font)
     if ylabel_show:
         axes.set_ylabel(y_label, fontsize=axes_label_font)
-
 
     axes.tick_params(axis='both', which='major', labelsize=tickfontsize)
 
