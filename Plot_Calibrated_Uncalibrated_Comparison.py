@@ -9,7 +9,7 @@ from generaltools import from_u_to_k_perp
 from generaltools import from_jansky_to_milikelvin
 from generaltools import colorbar
 
-from Error_Comparison_Plots import plot_power_spectrum
+from Plot_Calibrated_Error_Comparison import plot_power_spectrum
 
 def main(labelfontsize = 10, ticksize= 10):
     u_range = numpy.logspace(0, numpy.log10(200), 100)
@@ -21,7 +21,8 @@ def main(labelfontsize = 10, ticksize= 10):
 
     figure, axes = pyplot.subplots(1, 3, figsize = (15, 5))
     ps_norm = plot_power_spectrum(u_range, eta, frequency_range, sky_only_cal, title="Calibrated", axes=axes[0],
-                                  axes_label_font= labelfontsize, tickfontsize = ticksize, return_norm = True, colorbar_show=True, xlabel_show= True)
+                                  axes_label_font= labelfontsize, tickfontsize = ticksize, return_norm = True,
+                                  colorbar_show=True, xlabel_show= True)
 
     # Plot Difference with uncalibrated
     diff_norm = colors.LogNorm(vmin=1e0, vmax=1e5)

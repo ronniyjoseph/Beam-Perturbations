@@ -74,6 +74,7 @@ def from_eta_to_k_par(eta, nu_observed, H0 = 70.4, nu_emission = 1.42e9):
 
     return k_par
 
+
 def from_u_to_k_perp(u, frequency):
     #following Morales 2004
     distance = comoving_distance(nu_min = frequency)
