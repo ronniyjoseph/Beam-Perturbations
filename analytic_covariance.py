@@ -78,12 +78,12 @@ def beam_covariance(u, v, nu, dx =1):
         numpy.exp(-2*numpy.pi**2*sigma_D1*((u*nn1/nu[0] - xx/c*nn1)**2 + (v*nn1/nu[0] - yy/c*nn1)**2)) *\
         numpy.exp(-2*numpy.pi**2*sigma_D2*((u*nn2/nu[0] - xx/c*nn2)**2 + (v*nn2/nu[0] - yy/c*nn2)**2)), axis = -1)
 
-    E = (mu_1_m**2 + 2*mu_1_m*mu_1_r + mu_1_r**2) *2*numpy.pi* numpy.sum(sigma_D1*sigma_D2/len(x_offsets)**4*\
+    E = -(mu_1_m**2 + 2*mu_1_m*mu_1_r + mu_1_r**2) *2*numpy.pi* numpy.sum(sigma_D1*sigma_D2/len(x_offsets)**4*\
         numpy.exp(-2*numpy.pi**2*sigma_D1*((u*nn1/nu[0] - xx/c*nn1)**2 +(v*nn1/nu[0] - yy/c*nn1)**2)), axis = -1)*\
         numpy.sum(numpy.exp(-2*numpy.pi**2*sigma_D2*((u * nn2 / nu[0] - xx / c * nn2) ** 2 +
                                                                   (v * nn2 / nu[0] - yy / c * nn2) ** 2)), axis=-1)
 
-    return (A + B + C + D + E)
+    return A + B + C + D + E
 
 
 def moment_returner(n_order, k1=4100, gamma1=1.59, k2=4100, gamma2=2.5, S_low=400e-3, S_mid=1, S_high=5.):
@@ -113,143 +113,81 @@ def compute_ps_variance(taper1, taper2, covariance, dft_matrix):
     return variance
 
 
-
-def calculate_beam_PS(u, nu):
+def calculate_beam_power_spectrum_averaged(u, nu):
 
     uu, vv = numpy.meshgrid(u, u)
     variance_cube = numpy.zeros((len(u), len(u), len(nu)))
 
     window_function = blackman_harris_taper(nu)
-    #window_function = signal.gaussian(nu)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
-
     dftmatrix, eta = dft_matrix(nu)
 
     print("calculating all variances for all uv-cells")
     for i in range(len(u)):
         for j in range(len(u)):
             nu_cov = beam_covariance(uu[i, j], vv[i, j], nu)
-            tapered_cov = nu_cov*taper1*taper2
-
-            eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
-
-            variance_cube[i, j, :] = numpy.diag(numpy.real(eta_cov))
+            variance_cube[i, j, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
 
     print("Taking circular average")
     # Take circular average
-    #print(variance_cube)
-    #PS, u_bins = powerbox.tools.angular_average_nd(variance_cube, coords=[u, u, eta], bins=len(u) / 2, n=2)
+    power_spectrum_2d, u_bins = powerbox.tools.angular_average_nd(variance_cube, coords=[u, u, eta], bins=len(u), n=2)
 
-    pyplot.imshow(variance_cube[:, 10, :].T)
-    pyplot.show()
-
-    return
+    return eta[:int(len(eta)/2)], power_spectrum_2d[:, :int(len(eta)/2)]
 
 
-def calculate_beam_2DPS(u, nu, save = False, plot_name = "beam_2D_ps.pdf"):
-
+def calculate_beam_power_spectrum(u, nu, save = False, plot_name = "beam_2D_ps.pdf"):
 
     window_function = blackman_harris_taper(nu)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
-
     dftmatrix, eta = dft_matrix(nu)
 
     variance = numpy.zeros((len(u), len(nu)))
 
-    #figure = pyplot.figure(figsize=(23,4))
-    #axes = figure.add_subplot(111)
     print(f"Calculating covariances for all baselines")
     for i in range(len(u)):
-        nu_cov = beam_covariance(u[i], 0, nu)
-        tapered_cov = nu_cov * taper1 * taper2
-        eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
-        variance[i, :] = numpy.diag(numpy.real(eta_cov))
+        nu_cov = beam_covariance(u[i], v=0, nu=nu)
+        variance[i, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
 
-        #axes.plot(variance[i, : ])
-        #axes_label = r"$\nu$ [MHz]"
-        #axes = figure.add_subplot(1, 4, i+1)
-        #plot = axes.pcolor(eta, eta, numpy.real(eta_cov))
-        #if i == 0:
-        #    axes.set_ylabel((axes_label))
-        #cax = colorbar(plot)
-        #axes.set_xlabel(axes_label)
-
-
-    print(f"Plotting Data")
-    plot_PS(u, eta[:int(len(eta) / 2)], nu,  variance[:, :int(len(eta) / 2)], cosmological=True, title="Beam", save = save,
-            save_name = plot_name)
-    #pyplot.show()
-
-    return
-
-
-def calculate_total_2DPS(u, nu, save = False, plot = True, plot_name = "total_ps.pdf"):
-
-
-
-    window_function = blackman_harris_taper(nu)
-    taper1, taper2 = numpy.meshgrid(window_function, window_function)
-
-    dftmatrix, eta = dft_matrix(nu)
-
-    variance = numpy.zeros((len(u), len(nu)))
-    #figure = pyplot.figure(figsize=(23,4))
-    #axes = figure.add_subplot((111))
-    for i in range(len(u)):
-        nu_cov = sky_covariance(u[i], 0, nu) + beam_covariance(u[i], v=0, nu=nu)
-        tapered_cov = nu_cov * taper1 * taper2
-        eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
-        variance[i, :] = numpy.diag(numpy.real(eta_cov))
-
-        #axes_label = r"$\nu$ [MHz]"
-        #axes = figure.add_subplot(1, 4, i + 1)
-        #plot = axes.pcolor(nu/1e6, nu/1e6,  numpy.real(nu_cov))
-        #if i == 0:
-        #    axes.set_ylabel((axes_label))
-        #cax = colorbar(plot)
-        #axes.set_xlabel(axes_label)
-
-    if plot:
-        plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True, title="Total", save = save,
-            save_name = plot_name)
     return eta[:int(len(eta)/2)], variance[:, :int(len(eta)/2)]
 
 
+def calculate_total_power_spectrum(u, nu, full = False, save = False, plot = True, plot_name = "total_ps.pdf"):
 
-def calculate_sky_PS(u, nu, title = "Sky", save = False, plot_name = "sky_ps.pdf"):
-
-    roll_length = 0
-    window_function = numpy.zeros(len(nu)) + 1 #blackman_harris_taper(nu)
-    pyplot.plot(nu, window_function)
-    pyplot.plot(nu, numpy.roll(window_function,roll_length))
-    print(nu[window_function == window_function.max()])
-
-    taper1, taper2 = numpy.meshgrid(window_function, numpy.roll(window_function,roll_length))
-
+    window_function = blackman_harris_taper(nu)
+    taper1, taper2 = numpy.meshgrid(window_function, window_function)
     dftmatrix, eta = dft_matrix(nu)
 
     variance = numpy.zeros((len(u), len(nu)))
-    #figure = pyplot.figure(figsize=(23,4))
-    #axes = figure.add_subplot((111))
-    for i in range(len(u)):
-        nu_cov = sky_covariance(u[i], 0, nu)
-        tapered_cov = nu_cov * taper1 * taper2
-        eta_cov = numpy.dot(numpy.dot(dftmatrix.conj().T, tapered_cov), dftmatrix)
-        variance[i, :] = numpy.diag(numpy.real(eta_cov))
+    if full:
+        uu, vv = numpy.meshgrid(u, u)
+        variance_cube = numpy.zeros((len(u), len(u), len(nu)))
+        for i in range(len(u)):
+            for j in range(len(u)):
+                nu_cov = sky_covariance(u[i], 0, nu) + beam_covariance(uu[i, j], vv[i, j], nu)
+                variance_cube[i, j, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
+        variance[:], u_bins = powerbox.tools.angular_average_nd(variance_cube, coords=[u, u, eta], bins=len(u),
+                                                                      n=2)
+    else:
+        for i in range(len(u)):
+            nu_cov = sky_covariance(u[i], 0, nu) + beam_covariance(u[i], v=0, nu=nu)
+            variance[i, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
 
-        #axes_label = r"$\nu$ [MHz]"
-        #axes = figure.add_subplot(1, 4, i + 1)
-        #plot = axes.pcolor(nu/1e6, nu/1e6,  numpy.real(nu_cov))
-        #if i == 0:
-        #    axes.set_ylabel((axes_label))
-        #cax = colorbar(plot)
-        #axes.set_xlabel(axes_label)
+    return eta[:int(len(eta)/2)], variance[:, :int(len(eta)/2)]
 
 
-    plot_PS(u, eta[:int(len(eta)/2)], nu, variance[:, :int(len(eta)/2)], cosmological=True, title = title, save = save,
-            save_name = plot_name)
+def calculate_sky_power_spectrum(u_range, nu_range, title ="Sky", save = False, plot_name ="sky_ps.pdf"):
 
-    return
+    window_function = blackman_harris_taper(nu_range)
+    taper1, taper2 = numpy.meshgrid(window_function, window_function)
+    dftmatrix, eta = dft_matrix(nu_range)
+
+    sky_variance = numpy.zeros((len(u_range), len(nu_range)))
+    for i in range(len(u_range)):
+        nu_cov = sky_covariance(u_range[i], 0, nu_range)
+        sky_variance[i, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
+
+    return eta[:int(len(eta) / 2)], sky_variance[:, :int(len(eta) / 2)]
+
 
 def plot_PS(u_bins, eta_bins, nu, PS, cosmological= False, ratio = False, title = None, save = False, axes = None,
             save_name = "plot.pdf", axes_label_font = 20, tickfontsize = 15, xlabel_show = False, ylabel_show = False,
@@ -354,10 +292,8 @@ def test_dft_on_signal():
 
     return
 
-def residual_ps_error(u_range, frequency_range, residuals='both', path="./", plot=True):
-    cal_variance = numpy.zeros((len(u_range), len(frequency_range)))
-    raw_variance = numpy.zeros((len(u_range), len(frequency_range)))
 
+def gain_error_covariance(u_range, frequency_range, residuals = 'both'):
     model_variance = numpy.diag(sky_covariance(0, 0, frequency_range, S_low=1, S_high=10))
     model_normalisation = numpy.sqrt(numpy.outer(model_variance, model_variance))
     gain_error_covariance = numpy.zeros((len(u_range), len(frequency_range), len(frequency_range)))
@@ -365,19 +301,27 @@ def residual_ps_error(u_range, frequency_range, residuals='both', path="./", plo
     # Compute all residual to model ratios at different u scales
     for u_index in range(len(u_range)):
         if residuals == "sky":
-            residual_covariance = sky_covariance(u_range[u_index], v=0, nu =frequency_range)
+            residual_covariance = sky_covariance(u_range[u_index], v=0, nu=frequency_range)
         elif residuals == "beam":
             residual_covariance = beam_covariance(u_range[u_index], v=0, nu=frequency_range)
         elif residuals == 'both':
-            residual_covariance = sky_covariance(u_range[u_index], v=0, nu =frequency_range) + \
+            residual_covariance = sky_covariance(u_range[u_index], v=0, nu=frequency_range) + \
                                   beam_covariance(u_range[u_index], v=0, nu=frequency_range)
         gain_error_covariance[u_index, :, :] = residual_covariance / model_normalisation
 
-    gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) / (127*8000)**2
+    gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) / (127 * 8000) ** 2
+    return gain_averaged_covariance
+
+
+def residual_ps_error(u_range, frequency_range, residuals='both', path="./", plot=True):
+    cal_variance = numpy.zeros((len(u_range), len(frequency_range)))
+    raw_variance = numpy.zeros((len(u_range), len(frequency_range)))
+
     window_function = blackman_harris_taper(frequency_range)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
     dftmatrix, eta = dft_matrix(frequency_range)
 
+    gain_averaged_covariance = gain_error_covariance(u_range, frequency_range)
     # Compute the gain corrected residuals at all u scales
     for i in range(len(u_range)):
         if residuals == "sky":
@@ -401,14 +345,14 @@ def residual_ps_error(u_range, frequency_range, residuals='both', path="./", plo
 
 if __name__ == "__main__":
     u = numpy.logspace(-1, 2.5, 100)
-    nu = numpy.linspace(140, 160, 501)*1e6
+    nu = numpy.linspace(140, 160, 101)*1e6
 
     output_folder = "../../Plots/Analytic_Covariance/"
 
-    calculate_sky_PS(u, nu, save = False, plot_name= output_folder + "sky_ps.pdf")
-    #calculate_beam_2DPS(u, nu, save = True, plot_name= output_folder + "beam_ps.pdf")
+    calculate_sky_power_spectrum(u, nu, save = False, plot_name=output_folder + "sky_ps.pdf")
+    calculate_beam_2DPS(u, nu, save = True, plot_name= output_folder + "beam_ps.pdf")
 
-    #calculate_total_2DPS(u, nu, save = True, plot_name= output_folder + "total_ps.pdf")
+    calculate_total_2DPS(u, nu, save = True, plot_name= output_folder + "total_ps.pdf")
 
     #nu = numpy.linspace(135, 165, 200)*1e6
     #print(from_jansky_to_milikelvin(1, nu))
