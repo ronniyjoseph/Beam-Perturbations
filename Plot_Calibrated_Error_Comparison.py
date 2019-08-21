@@ -9,34 +9,33 @@ from generaltools import from_jansky_to_milikelvin
 from generaltools import colorbar
 
 def main(labelfontsize = 10, ticksize= 10):
-    u_range = numpy.logspace(0, numpy.log10(200), 100)
+    u_range = numpy.logspace(0, numpy.log10(500), 100)
 
     # 100 frequency channels is fine for now, maybe later do a higher number to push up the k_par range
     frequency_range = numpy.linspace(135, 165, 101) * 1e6
 
     eta, sky_only_raw, sky_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
-    #eta, beam_only_raw, beam_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
     eta, sky_and_beam_raw, sky_and_beam_cal = residual_ps_error(u_range, frequency_range, residuals='both')
+    difference_cal = sky_and_beam_cal - sky_only_cal
+    pyplot.imshow(difference_cal)
+    pyplot.show()
 
-    figure, axes = pyplot.subplots(1, 4, figsize = (20, 5))
-    ps_norm = plot_power_spectrum(u_range, eta, frequency_range, sky_and_beam_cal, title="Sky + Beam", axes=axes[1],
-                                  axes_label_font= labelfontsize, tickfontsize = ticksize, return_norm = True, colorbar_show=True, xlabel_show= True)
 
-    plot_power_spectrum(u_range, eta, frequency_range, sky_only_cal, title="Sky Only", axes=axes[0],
-                        axes_label_font= labelfontsize, tickfontsize = ticksize, ylabel_show= True, norm=ps_norm,colorbar_show=True, xlabel_show= True)
+    figure, axes = pyplot.subplots(1, 3, figsize = (15, 5))
+    ps_norm = plot_power_spectrum(u_range, eta, frequency_range, sky_and_beam_cal,
+                                  title=r"Calibrated Residuals $\mathbf{C}_{\mathrm{sky}} + \mathbf{C}_{\mathrm{beam}}$", axes=axes[0],
+                                  axes_label_font= labelfontsize, tickfontsize = ticksize, return_norm = True, xlabel_show= True)
+    norm = colors.SymLogNorm(linthresh=1e7, linscale = 1, vmin = -1e14, vmax = 1e14)
 
-    # Plot Difference with uncalibrated
-    diff_norm = colors.LogNorm(vmin=1e0, vmax=1e14)
-    difference_label = r"Difference [mK$^2$ Mpc$^3$ ]"
-    plot_power_spectrum(u_range, eta, frequency_range, sky_and_beam_cal - sky_only_cal,
-                        axes=axes[2], axes_label_font= labelfontsize, tickfontsize = ticksize,
-                        norm=ps_norm, colorbar_show=True,xlabel_show= True, title="Difference")
+    plot_power_spectrum(u_range, eta, frequency_range, difference_cal,
+                        axes=axes[1], axes_label_font= labelfontsize, tickfontsize = ticksize,
+                        norm=norm, colorbar_show=True, xlabel_show= True, title="Difference", diff=True)
 
     ratio_norm = colors.LogNorm(1e-2, 1e2)
     # Plot ratios with uncalibrated
     plot_power_spectrum(u_range, eta, frequency_range, (sky_and_beam_cal - sky_only_cal)/sky_only_cal,
-             ratio= True, axes=axes[3], axes_label_font= labelfontsize, tickfontsize = ticksize,
-            xlabel_show= True, colorbar_show=True, norm =ratio_norm, title="Ratio")
+             ratio= True, axes=axes[2], axes_label_font= labelfontsize, tickfontsize = ticksize,
+            xlabel_show= True, colorbar_show=True, norm =ratio_norm, title="Fraction of Fiducial EoR Power")
 
     figure.tight_layout()
     pyplot.show()
@@ -64,9 +63,9 @@ def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axe
         z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
 
     if x_range is None:
-        axes.set_xlim(1e-3, 1e-1)
+        axes.set_xlim(9e-3, 3e-1)
     if y_range is None:
-        axes.set_ylim(9e-3, 5e-1)
+        axes.set_ylim(9e-3, 1.2e0)
 
     if diff:
         print(z_values.min())
