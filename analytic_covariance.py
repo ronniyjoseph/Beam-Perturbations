@@ -293,7 +293,8 @@ def test_dft_on_signal():
     return
 
 
-def gain_error_covariance(u_range, frequency_range, residuals = 'both'):
+def gain_error_covariance(u_range, frequency_range, residuals = 'both', weights = None):
+
     model_variance = numpy.diag(sky_covariance(0, 0, frequency_range, S_low=1, S_high=10))
     model_normalisation = numpy.sqrt(numpy.outer(model_variance, model_variance))
     gain_error_covariance = numpy.zeros((len(u_range), len(frequency_range), len(frequency_range)))
@@ -309,7 +310,9 @@ def gain_error_covariance(u_range, frequency_range, residuals = 'both'):
                                   beam_covariance(u_range[u_index], v=0, nu=frequency_range)
         gain_error_covariance[u_index, :, :] = residual_covariance / model_normalisation
 
-    gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) / (127 * 8000) ** 2
+    if weights is None:
+        gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) / (127 * 8000) ** 2
+
     return gain_averaged_covariance
 
 
@@ -321,7 +324,7 @@ def residual_ps_error(u_range, frequency_range, residuals='both', path="./", plo
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
     dftmatrix, eta = dft_matrix(frequency_range)
 
-    gain_averaged_covariance = gain_error_covariance(u_range, frequency_range)
+    gain_averaged_covariance = gain_error_covariance(u_range, frequency_range, residuals=residuals)
     # Compute the gain corrected residuals at all u scales
     for i in range(len(u_range)):
         if residuals == "sky":
