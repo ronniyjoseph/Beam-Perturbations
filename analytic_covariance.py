@@ -27,6 +27,7 @@ def sky_covariance(u, v, nu, S_low = 0.1, S_mid = 1, S_high = 1):
 
     return sky_covariance
 
+
 def beam_covariance(u, v, nu, dx =1):
     x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
                          -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dx
@@ -335,7 +336,7 @@ def residual_ps_error(u_range, frequency_range, residuals='both', path="./", plo
             residual_covariance = sky_covariance(u_range[i], 0, frequency_range) + \
                                   beam_covariance(u_range[i], v=0, nu=frequency_range)
 
-        model_covariance = sky_covariance(u_range[i], 0, frequency_range, S_low=1, S_high=5)
+        model_covariance = sky_covariance(u_range[i], 0, frequency_range, S_low=1, S_high=10)
 
         nu_cov = 2 * gain_averaged_covariance * model_covariance + (1 + 2*gain_averaged_covariance)*residual_covariance
 
