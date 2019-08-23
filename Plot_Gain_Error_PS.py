@@ -13,8 +13,8 @@ from analytic_covariance import dft_matrix
 from Plot_Calibrated_Error_Comparison import plot_power_spectrum
 
 
-def main(labelfontsize = 10, ticksize= 10):
-
+def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
+    plot_path = "../../Plots/Analytic_Covariance/"
     u_range = numpy.logspace(0, numpy.log10(500), 100)
     frequency_range = numpy.linspace(135, 165, 101) * 1e6
 
@@ -43,7 +43,7 @@ def main(labelfontsize = 10, ticksize= 10):
                         xlabel_show=True, ylabel_show=True, z_label="Dimensionless", ratio=True)
 
     figure.tight_layout()
-
+    figure.savefig(plot_path + plot_name)
     pyplot.show()
     return
 
