@@ -10,6 +10,7 @@ import pyfftw
 import sys
 import time
 
+
 def colorbar(mappable):
     ax = mappable.axes
     fig = ax.figure

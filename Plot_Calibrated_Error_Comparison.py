@@ -57,7 +57,7 @@ def main(labelfontsize = 10, ticksize= 10):
 
     figure.tight_layout()
     figure.savefig(plot_path + "Comparing_Sky_and_Beam_Errors_Post_Calibration.pdf")
-    #pyplot.show()
+    pyplot.show()
 
     return
 
