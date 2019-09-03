@@ -39,11 +39,11 @@ def beam_covariance(u, v, nu, dx=1):
     nn1, nn2, xx = numpy.meshgrid(nu, nu, x_offsets)
     nn1, nn2, yy = numpy.meshgrid(nu, nu, y_offsets)
 
-    mu_1_r = moment_returner(1, S_high=1)
-    mu_2_r = moment_returner(2, S_high=1)
+    mu_1_r = moment_returner(1, S_low = 400e-3,  S_high=1)
+    mu_2_r = moment_returner(2, S_low = 400e-3, S_high=1)
 
-    mu_1_m = moment_returner(1, S_low=1)
-    mu_2_m = moment_returner(2, S_low=1)
+    mu_1_m = moment_returner(1, S_low=1, S_high=10)
+    mu_2_m = moment_returner(2, S_low=1, S_high=10)
 
     width_1_tile = numpy.sqrt(2) * beam_width(nn1)
     width_2_tile = numpy.sqrt(2) * beam_width(nn2)
@@ -61,7 +61,7 @@ def beam_covariance(u, v, nu, dx=1):
                 width_1_tile ** 2 * width_2_tile ** 2)
 
     sigma_C = (width_1_tile * width_2_tile * width_1_dipole) ** 2 / (
-                width_2_tile ** 2 * width_1_dipole ** 2 + 2 * width_2_tile ** 2 * width_1_dipole ** 2 +
+                width_2_tile ** 2 * width_1_dipole ** 2 + 2 * width_1_tile ** 2 * width_1_dipole ** 2 +
                 width_1_tile ** 2 * width_2_tile ** 2)
 
     sigma_D1 = width_1_tile ** 2 * width_1_dipole ** 2 / (width_1_tile ** 2 + width_1_dipole ** 2)
@@ -72,11 +72,11 @@ def beam_covariance(u, v, nu, dx=1):
                 (u / nu[0] + xx / c) ** 2 + (v / nu[0] + yy / c) ** 2) * (nn1 - nn2) ** 2.), axis=-1)
 
     B = -2 * numpy.pi * mu_2_r / len(y_offsets) ** 2 * numpy.sum(sigma_B * numpy.exp(-2 * numpy.pi ** 2 * sigma_B * (
-            (u * (nn1 - nn2) / nu[0] + xx / c * nn2) ** 2 + (v * (nn1 - nn2) ** 2 / nu[0] + yy / c * nn2) ** 2)),
+            (u * (nn1 - nn2) / nu[0] + xx / c * nn2) ** 2 + (v * (nn1 - nn2) / nu[0] + yy / c * nn2) ** 2)),
                                                                  axis=-1)
 
     C = -2 * numpy.pi * mu_2_r / len(y_offsets) ** 2 * numpy.sum(sigma_C * numpy.exp(-2 * numpy.pi ** 2 * sigma_C * (
-            (u * (nn1 - nn2) / nu[0] + xx / c * nn2) ** 2 + (v * (nn1 - nn2) ** 2 / nu[0] + yy / c * nn1) ** 2)),
+            (u * (nn1 - nn2) / nu[0] + xx / c * nn1) ** 2 + (v * (nn1 - nn2) / nu[0] + yy / c * nn1) ** 2)),
                                                                  axis=-1)
 
     D = (mu_1_m ** 2 + 2 * mu_1_m * mu_1_r + mu_1_r ** 2) * 2 * numpy.pi * numpy.sum(
@@ -92,6 +92,22 @@ def beam_covariance(u, v, nu, dx=1):
                     (u * nn1 / nu[0] - xx / c * nn1) ** 2 + (v * nn1 / nu[0] - yy / c * nn1) ** 2)), axis=-1) * \
         numpy.sum(numpy.exp(-2 * numpy.pi ** 2 * sigma_D2 * ((u * nn2 / nu[0] - xx / c * nn2) ** 2 +
                                                              (v * nn2 / nu[0] - yy / c * nn2) ** 2)), axis=-1)
+
+    # figs, axs = pyplot.subplots(2,3)
+    # a_im = axs[0, 0].pcolor(nu, nu, A)
+    # b_im = axs[0, 1].pcolor(nu, nu, B)
+    # c_im = axs[0, 2].pcolor(nu, nu, C)
+    # d_im = axs[1, 0].pcolor(nu, nu, D)
+    # e_im = axs[1, 1].pcolor(nu, nu, E)
+    # colorbar(a_im)
+    # colorbar(b_im)
+    # colorbar(c_im)
+    # colorbar(d_im)
+    # colorbar(e_im)
+    # figs.tight_layout()
+    # pyplot.show()
+    #
+    # print(mu_2_m/(len(x_offsets)*mu_2_r))
 
     return A + B + C + D + E
 
@@ -316,12 +332,31 @@ def gain_error_covariance(u_range, frequency_range, residuals='both', weights=No
         gain_error_covariance[u_index, :, :] = residual_covariance / model_normalisation
 
     if weights is None:
-        gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) * (1/(127 * 8000)) ** 2
-
+        gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) * (len(u_range)/(127*8000)) ** 2
+    else:
+        gain_averaged_covariance = gain_error_covariance.copy()
+        for u_index in range(len(u_range)):
+            u_weight_reshaped = numpy.tile(weights[u_index, :].flatten(), (len(frequency_range), len(frequency_range), 1)).T
+            gain_averaged_covariance[u_index, ...] = numpy.sum(gain_error_covariance * u_weight_reshaped, axis=0)
     return gain_averaged_covariance
 
 
-def residual_ps_error(u_range, frequency_range, residuals='both', broken_baselines_weight = 1, path="./", plot=True):
+def compute_weights(u_cells, u, v):
+    u_bin_edges = numpy.zeros(len(u_cells) + 1)
+    baseline_lengths = numpy.sqrt(u**2 + v**2)
+    log_steps = numpy.diff(numpy.log10(u_cells))
+    u_bin_edges[1:] = 10**(numpy.log10(u_cells) + 0.5*log_steps[0])
+    u_bin_edges[0] = 10**(numpy.log10(u_cells[0] - 0.5*log_steps[0]))
+
+    counts, bin_edges = numpy.histogram(baseline_lengths, bins=u_bin_edges)
+    prime, unprime = numpy.meshgrid(counts/len(baseline_lengths), counts/len(baseline_lengths))
+
+    weights = prime*unprime*(1/127)**2
+
+    return weights
+
+
+def residual_ps_error(u_range, frequency_range, residuals='both', broken_baselines_weight = 1, weights = None, path="./", plot=True):
     cal_variance = numpy.zeros((len(u_range), len(frequency_range)))
     raw_variance = numpy.zeros((len(u_range), len(frequency_range)))
 
@@ -329,7 +364,7 @@ def residual_ps_error(u_range, frequency_range, residuals='both', broken_baselin
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
     dftmatrix, eta = dft_matrix(frequency_range)
 
-    gain_averaged_covariance = gain_error_covariance(u_range, frequency_range, residuals=residuals)
+    gain_averaged_covariance = gain_error_covariance(u_range, frequency_range, residuals=residuals, weights= weights)
     # Compute the gain corrected residuals at all u scales
     if residuals == "sky":
         residual_variance = sky_covariance(0, 0, frequency_range)
@@ -340,18 +375,26 @@ def residual_ps_error(u_range, frequency_range, residuals='both', broken_baselin
                             broken_baselines_weight *beam_covariance(0, v=0, nu=frequency_range)
 
     gain = residual_variance / sky_covariance(0, 0, frequency_range)
-    print(gain[0, 0])
     for i in range(len(u_range)):
         if residuals == "sky":
             residual_covariance = sky_covariance(u_range[i], 0, frequency_range)
+            blaah = 0
         elif residuals == "beam":
             residual_covariance = broken_baselines_weight**2*beam_covariance(u_range[i], v=0, nu=frequency_range)
+            blaah = 0
         elif residuals == 'both':
             residual_covariance = sky_covariance(u_range[i], 0, frequency_range) + \
                                   broken_baselines_weight**2*beam_covariance(u_range[i], v=0, nu=frequency_range)
+            blaah = 0
 
         model_covariance = sky_covariance(u_range[i], 0, frequency_range, S_low=1, S_high=10)
-        nu_cov = 2 * gain_averaged_covariance * model_covariance + (1 + 2*gain_averaged_covariance)*residual_covariance
+        scale = numpy.diag(numpy.zeros_like(frequency_range) ) + 1 + blaah
+        if weights is None:
+            nu_cov = 2*gain_averaged_covariance*model_covariance + \
+                     (scale + 2*gain_averaged_covariance)*residual_covariance
+        else:
+            nu_cov = 2*gain_averaged_covariance[i, ...]*model_covariance + \
+                     (scale + 2*gain_averaged_covariance[i, ...])*residual_covariance
 
         cal_variance[i, :] = compute_ps_variance(taper1, taper2, nu_cov, dftmatrix)
         raw_variance[i, :] = compute_ps_variance(taper1, taper2, residual_covariance, dftmatrix)
@@ -364,12 +407,8 @@ if __name__ == "__main__":
     nu = numpy.linspace(140, 160, 101) * 1e6
 
     output_folder = "../../Plots/Analytic_Covariance/"
+    #beam_covariance(u =0, v=0, nu=nu, dx=1)
+    # calculate_sky_power_spectrum(u, nu, save=False, plot_name=output_folder + "sky_ps.pdf")
+    # pyplot.show()
 
-    calculate_sky_power_spectrum(u, nu, save=False, plot_name=output_folder + "sky_ps.pdf")
-    calculate_beam_2DPS(u, nu, save=True, plot_name=output_folder + "beam_ps.pdf")
-
-    calculate_total_2DPS(u, nu, save=True, plot_name=output_folder + "total_ps.pdf")
-
-    # nu = numpy.linspace(135, 165, 200)*1e6
-    # print(from_jansky_to_milikelvin(1, nu))
-    pyplot.show()
+    compute_weights(u, 0, 0)
