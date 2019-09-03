@@ -1,11 +1,9 @@
 import numpy
+import argparse
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot
 from matplotlib import colors
 
 from generaltools import from_eta_to_k_par
-from generaltools import colorbar
 from analytic_covariance import gain_error_covariance
 from analytic_covariance import blackman_harris_taper
 from analytic_covariance import compute_ps_variance
@@ -14,6 +12,7 @@ from analytic_covariance import compute_weights
 
 from radiotelescope import RadioTelescope
 from plottools import plot_power_spectrum
+
 
 def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
     plot_path = "../../Plots/Analytic_Covariance/"
@@ -30,14 +29,6 @@ def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
     gain_error_sky_MWA = gain_error_covariance(u_range, frequency_range, residuals='sky', weights = weights)
     gain_error_both_MWA = gain_error_covariance(u_range, frequency_range, residuals='both', weights = weights)
 
-
-    # fig, axs = pyplot.subplots(1,2)
-    # a = axs[0].pcolor(frequency_range, frequency_range, gain_error_sky - gain_error_both)
-    # b = axs[1].pcolor(frequency_range, frequency_range, gain_error_both )
-    # colorbar(a)
-    # colorbar(b)
-    # pyplot.show()
-    #
     window_function = blackman_harris_taper(frequency_range)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
     dftmatrix, eta = dft_matrix(frequency_range)
@@ -61,18 +52,11 @@ def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
     axes[0].set_yscale('log')
     axes[0].legend()
 
-    #norm = colors.SymLogNorm(linthresh= 1e2, linscale = 1.5, vmin = -1e15, vmax = 1e15)
     norm = colors.LogNorm()
 
     plot_power_spectrum(u_range, eta[:int(len(eta) / 2)], frequency_range, mwa_sky_window[:, :int(len(eta) / 2)], axes=axes[1],
                         axes_label_font=labelfontsize, tickfontsize=ticksize, colorbar_show=True,
                         xlabel_show=True, ylabel_show=True, z_label="Dimensionless", ratio=True, norm = norm)
-    # plot_power_spectrum(u_range, eta[:int(len(eta) / 2)], frequency_range, mwa_both_window[:, :int(len(eta) / 2)], axes=axes[2],
-    #                     axes_label_font=labelfontsize, tickfontsize=ticksize, colorbar_show=True,
-    #                     xlabel_show=True, ylabel_show=True, z_label="Dimensionless", ratio=True, norm = norm)
-    # plot_power_spectrum(u_range, eta[:int(len(eta) / 2)], frequency_range, gain_error_ps[:, :int(len(eta) / 2)], axes=axes[1],
-    #                     axes_label_font=labelfontsize, tickfontsize=ticksize, colorbar_show=True,
-    #                     xlabel_show=True, ylabel_show=True, z_label="Dimensionless", ratio=True)
 
     figure.tight_layout()
     figure.savefig(plot_path + plot_name)
@@ -81,4 +65,10 @@ def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Plot and compare the sky and beam modelling errors')
+    parser.add_argument('-ssh', type=bool, action='store_true', default=False, help='flag to use when remote plotting')
+    if parser.ssh:
+        matplotlib.use('Agg')
+    from matplotlib import pyplot
     main()
+

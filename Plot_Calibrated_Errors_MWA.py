@@ -1,12 +1,11 @@
 import numpy
+import argparse
+
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot
 from matplotlib import colors
 
 from analytic_covariance import residual_ps_error
 from analytic_covariance import compute_weights
-
 
 from radiotelescope import RadioTelescope
 from plottools import plot_power_spectrum
@@ -41,7 +40,6 @@ def main(labelfontsize=10, ticksize=10):
                         xlabel_show=True, colorbar_show=True)
 
     diff_norm = colors.SymLogNorm(linthresh=1e2, linscale=1.5, vmin=-1e12, vmax=1e12)
-    #diff_norm = colors.LogNorm(vmin=1e2, vmax=1e7)
 
     plot_power_spectrum(u_range, eta, frequency_range, difference_cal,
                         axes=axes[1], axes_label_font=labelfontsize, tickfontsize=ticksize,
@@ -55,12 +53,6 @@ def main(labelfontsize=10, ticksize=10):
                         norm=ratio_norm, colorbar_show=True, xlabel_show=True,
                         title=r"$(\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky))/EoR ", diff=True)
 
-    # ratio_norm = colors.LogNorm(1e-2, 1e2)
-    # # Plot ratios with uncalibrated
-    # plot_power_spectrum(u_range, eta, frequency_range, (sky_and_beam_cal - sky_only_cal)/sky_only_cal,
-    #          ratio= True, axes=axes[2], axes_label_font= labelfontsize, tickfontsize = ticksize,
-    #         xlabel_show= True, colorbar_show=True, norm =ratio_norm, title="Fraction of Fiducial EoR Power")
-
     figure.tight_layout()
     figure.savefig(plot_path + "Comparing_Sky_and_Beam_Errors_Post_Calibration_MWA.pdf")
     pyplot.show()
@@ -69,4 +61,9 @@ def main(labelfontsize=10, ticksize=10):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Plot and compare the sky and beam modelling errors')
+    parser.add_argument('-ssh', type=bool, action='store_true', default=False, help='flag to use when remote plotting')
+    if parser.ssh:
+        matplotlib.use('Agg')
+    from matplotlib import pyplot
     main()

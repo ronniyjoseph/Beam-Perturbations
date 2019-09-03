@@ -1,12 +1,10 @@
 import numpy
+import argparse
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot
 from matplotlib import colors
-from analytic_covariance import dft_matrix
-
 from scipy.interpolate import interp1d
 
+from analytic_covariance import dft_matrix
 from plottools import plot_power_spectrum
 
 
@@ -74,4 +72,9 @@ def fiducial_eor(u, eta, path = "./Data/"
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Plot and compare the sky and beam modelling errors')
+    parser.add_argument('-ssh', type=bool, action='store_true', default=False, help='flag to use when remote plotting')
+    if parser.ssh:
+        matplotlib.use('Agg')
+    from matplotlib import pyplot
     main()
