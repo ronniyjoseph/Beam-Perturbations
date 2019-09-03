@@ -1,9 +1,18 @@
 import matplotlib
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from generaltools import from_eta_to_k_par
 from generaltools import from_u_to_k_perp
 from generaltools import from_jansky_to_milikelvin
-from generaltools import colorbar
+
+
+def colorbar(mappable):
+    ax = mappable.axes
+    fig = ax.figure
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+
+    return fig.colorbar(mappable, cax=cax)
 
 
 def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axes=None,
