@@ -1,6 +1,6 @@
-import matplotlib
+import numpy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
+from matplotlib import colors
 from generaltools import from_eta_to_k_par
 from generaltools import from_u_to_k_perp
 from generaltools import from_jansky_to_milikelvin
@@ -11,7 +11,6 @@ def colorbar(mappable):
     fig = ax.figure
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
-
     return fig.colorbar(mappable, cax=cax)
 
 
