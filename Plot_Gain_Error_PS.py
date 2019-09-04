@@ -14,7 +14,7 @@ from radiotelescope import RadioTelescope
 from plottools import plot_power_spectrum
 
 
-def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
+def main(ssh= False, labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
     plot_path = "../../Plots/Analytic_Covariance/"
     u_range = numpy.logspace(0, numpy.log10(500), 100)
     frequency_range = numpy.linspace(135, 165, 251) * 1e6
@@ -26,8 +26,8 @@ def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
 
     gain_error_sky = gain_error_covariance(u_range, frequency_range, residuals='sky')
     gain_error_both = gain_error_covariance(u_range, frequency_range, residuals='both')
-    gain_error_sky_MWA = gain_error_covariance(u_range, frequency_range, residuals='sky', weights = weights)
-    gain_error_both_MWA = gain_error_covariance(u_range, frequency_range, residuals='both', weights = weights)
+    gain_error_sky_MWA = gain_error_covariance(u_range, frequency_range, residuals='sky', weights = weights, broken_baseline_weight=0.3)
+    gain_error_both_MWA = gain_error_covariance(u_range, frequency_range, residuals='both', weights = weights, broken_baseline_weight=0.3)
 
     window_function = blackman_harris_taper(frequency_range)
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
@@ -42,7 +42,7 @@ def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
         mwa_sky_window[i, :] = compute_ps_variance(taper1, taper2, gain_error_sky_MWA[i, ...], dftmatrix)
         mwa_both_window[i, :] = compute_ps_variance(taper1, taper2, gain_error_both_MWA[i, ...], dftmatrix)
 
-    figure, axes = pyplot.subplots(1, 1, figsize=(10, 5))
+    figure, axes = pyplot.subplots(1, 2, figsize=(10, 5))
 
     axes[0].plot(k_perp, compute_ps_variance(taper1, taper2, gain_error_sky, dftmatrix)[:int(len(eta) / 2)], label = r"$\mathbf{C}_{g}(sky)$")
     axes[0].plot(k_perp, compute_ps_variance(taper1, taper2, gain_error_both, dftmatrix)[:int(len(eta) / 2)], label = r"$\mathbf{C}_{g}(sky + beam)$")
@@ -60,15 +60,20 @@ def main(labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Window.pdf"):
 
     figure.tight_layout()
     figure.savefig(plot_path + plot_name)
-    pyplot.show()
+    if not ssh:
+        pyplot.show()
+
     return
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plot and compare the sky and beam modelling errors')
-    parser.add_argument('-ssh', type=bool, action='store_true', default=False, help='flag to use when remote plotting')
-    if parser.ssh:
+    parser.add_argument('-ssh', action='store_true', default=False, help='flag to use when remote plotting')
+    args = parser.parse_args()
+
+    if args.ssh:
         matplotlib.use('Agg')
+
     from matplotlib import pyplot
-    main()
+    main(ssh = args.ssh)
 
