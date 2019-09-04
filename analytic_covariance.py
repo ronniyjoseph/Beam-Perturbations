@@ -2,9 +2,8 @@ from scipy.constants import c
 from scipy import signal
 from generaltools import symlog_bounds
 from radiotelescope import beam_width
-from matplotlib import pyplot
 
-from generaltools import colorbar
+from plottools import colorbar
 from generaltools import from_eta_to_k_par
 from generaltools import from_u_to_k_perp
 from generaltools import from_jansky_to_milikelvin
@@ -315,7 +314,7 @@ def test_dft_on_signal():
     return
 
 
-def gain_error_covariance(u_range, frequency_range, residuals='both', weights=None):
+def gain_error_covariance(u_range, frequency_range, residuals='both', weights=None, broken_baseline_weight = 1):
     model_variance = numpy.diag(sky_covariance(0, 0, frequency_range, S_low=1, S_high=10))
     model_normalisation = numpy.sqrt(numpy.outer(model_variance, model_variance))
     gain_error_covariance = numpy.zeros((len(u_range), len(frequency_range), len(frequency_range)))
@@ -325,10 +324,10 @@ def gain_error_covariance(u_range, frequency_range, residuals='both', weights=No
         if residuals == "sky":
             residual_covariance = sky_covariance(u_range[u_index], v=0, nu=frequency_range)
         elif residuals == "beam":
-            residual_covariance = beam_covariance(u_range[u_index], v=0, nu=frequency_range)
+            residual_covariance = broken_baseline_weight **2*beam_covariance(u_range[u_index], v=0, nu=frequency_range)
         elif residuals == 'both':
             residual_covariance = sky_covariance(u_range[u_index], v=0, nu=frequency_range) + \
-                                  beam_covariance(u_range[u_index], v=0, nu=frequency_range)
+                                  broken_baseline_weight **2*beam_covariance(u_range[u_index], v=0, nu=frequency_range)
         gain_error_covariance[u_index, :, :] = residual_covariance / model_normalisation
 
     if weights is None:
@@ -364,15 +363,16 @@ def residual_ps_error(u_range, frequency_range, residuals='both', broken_baselin
     taper1, taper2 = numpy.meshgrid(window_function, window_function)
     dftmatrix, eta = dft_matrix(frequency_range)
 
-    gain_averaged_covariance = gain_error_covariance(u_range, frequency_range, residuals=residuals, weights= weights)
+    gain_averaged_covariance = gain_error_covariance(u_range, frequency_range, residuals=residuals, weights= weights,
+                                                     broken_baseline_weight = broken_baselines_weight)
     # Compute the gain corrected residuals at all u scales
     if residuals == "sky":
         residual_variance = sky_covariance(0, 0, frequency_range)
     elif residuals == "beam":
-        residual_variance = broken_baselines_weight *beam_covariance(0, v=0, nu=frequency_range)
+        residual_variance = broken_baselines_weight **2*beam_covariance(0, v=0, nu=frequency_range)
     elif residuals == 'both':
         residual_variance = sky_covariance(0, 0, frequency_range) + \
-                            broken_baselines_weight *beam_covariance(0, v=0, nu=frequency_range)
+                            broken_baselines_weight **2*beam_covariance(0, v=0, nu=frequency_range)
 
     gain = residual_variance / sky_covariance(0, 0, frequency_range)
     for i in range(len(u_range)):
@@ -403,6 +403,8 @@ def residual_ps_error(u_range, frequency_range, residuals='both', broken_baselin
 
 
 if __name__ == "__main__":
+    from matplotlib import pyplot
+
     u = numpy.logspace(-1, 2.5, 100)
     nu = numpy.linspace(140, 160, 101) * 1e6
 
