@@ -8,12 +8,12 @@ from analytic_covariance import dft_matrix
 from plottools import plot_power_spectrum
 
 
-def main(labelfontsize = 10, ticksize= 10):
+def main(ssh = False, labelfontsize = 10, ticksize= 10):
     output_path = "../../Plots/Analytic_Covariance/"
     path = "/home/ronniyjoseph/Sync/PhD/Projects/beam_perturbations/code/tile_beam_perturbations/Data/"
     file = "redshift8.csv"
 
-    frequency_range = numpy.linspace(135, 165, 251) * 1e6
+    frequency_range = numpy.linspace(135, 165, 101) * 1e6
     u_range = numpy.logspace(0, numpy.log10(500), 100)
     dftmatrix, eta = dft_matrix(frequency_range)
     eta = eta[:len(eta)//2]
@@ -29,6 +29,9 @@ def main(labelfontsize = 10, ticksize= 10):
 
     fiducial_figure.tight_layout()
     fiducial_figure.savefig(output_path + "Fiducial_EoR_PS_z8.pdf" )
+
+    if not ssh:
+        pyplot.show()
     return
 
 
@@ -73,8 +76,10 @@ def fiducial_eor(u, eta, path = "./Data/"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plot and compare the sky and beam modelling errors')
-    parser.add_argument('-ssh', type=bool, action='store_true', default=False, help='flag to use when remote plotting')
-    if parser.ssh:
+    parser.add_argument('-ssh',  action='store_true', default=False, help='flag to use when remote plotting')
+    args = parser.parse_args()
+
+    if args.ssh:
         matplotlib.use('Agg')
     from matplotlib import pyplot
-    main()
+    main(ssh = args.ssh)
