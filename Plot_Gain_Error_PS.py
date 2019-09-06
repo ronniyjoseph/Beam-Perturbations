@@ -50,17 +50,23 @@ def main(ssh= False, labelfontsize = 10, ticksize= 10, plot_name = "Gain_PS_Wind
     axes[0].set_xlabel(r"$k_{\parallel}$ [Mpc$^{-1}$]")
     axes[0].set_xscale('log')
     axes[0].set_yscale('log')
+    axes[0].set_xlim(1e-18, 1e-5)
     axes[0].legend()
 
     norm = colors.LogNorm()
-
-    plot_power_spectrum(u_range, eta[:int(len(eta) / 2)], frequency_range, mwa_sky_window[:, :int(len(eta) / 2)], axes=axes[1],
-                        axes_label_font=labelfontsize, tickfontsize=ticksize, colorbar_show=True,
-                        xlabel_show=True, ylabel_show=True, z_label="Dimensionless", ratio=True, norm = norm)
-
+    axes[1].plot(k_perp, mwa_sky_window[:, :int(len(eta) / 2)].T)
+    axes[1].set_xscale('log')
+    axes[1].set_yscale('log')
+    axes[1].set_lim(1e-18, 1e-5)
+    # plot_power_spectrum(u_range, eta[:int(len(eta) / 2)], frequency_range, mwa_sky_window[:, :int(len(eta) / 2)], axes=axes[1],
+    #                     axes_label_font=labelfontsize, tickfontsize=ticksize, colorbar_show=True,
+    #                     xlabel_show=True, ylabel_show=True, z_label="Dimensionless", ratio=True, norm = norm)
+    print("I am plotting")
     figure.tight_layout()
     figure.savefig(plot_path + plot_name)
     if not ssh:
+        print("I am plotting")
+
         pyplot.show()
 
     return
@@ -73,7 +79,6 @@ if __name__ == "__main__":
 
     if args.ssh:
         matplotlib.use('Agg')
-
     from matplotlib import pyplot
     main(ssh = args.ssh)
 
