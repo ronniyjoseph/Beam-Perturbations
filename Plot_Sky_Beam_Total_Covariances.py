@@ -15,7 +15,7 @@ def main(labelfontsize = 10, ticksize= 10):
     k_perp_range = numpy.array([1e-4, 1.1e-1])
 
     u_range = numpy.logspace(-1, numpy.log10(200), 100)
-    frequency_range = numpy.linspace(135, 165, 101) * 1e6
+    frequency_range = numpy.linspace(135, 165, 251) * 1e6
 
     eta, sky_power_spectrum = calculate_sky_power_spectrum(u_range, frequency_range)
     #eta, beam_power_spectrum_averaged = calculate_beam_power_spectrum_averaged(u_range, frequency_range)

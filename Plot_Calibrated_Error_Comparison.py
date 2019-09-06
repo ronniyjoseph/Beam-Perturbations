@@ -12,7 +12,7 @@ def main(ssh = False, labelfontsize = 10, ticksize= 10):
     u_range = numpy.logspace(0, numpy.log10(500), 100)
 
     # 100 frequency channels is fine for now, maybe later do a higher number to push up the k_par range
-    frequency_range = numpy.linspace(135, 165, 101) * 1e6
+    frequency_range = numpy.linspace(135, 165, 251) * 1e6
 
     eta, sky_only_raw, sky_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
     eta, sky_and_beam_raw, sky_and_beam_cal = residual_ps_error(u_range, frequency_range, residuals='both')
@@ -40,6 +40,7 @@ def main(ssh = False, labelfontsize = 10, ticksize= 10):
                         axes=axes[2], axes_label_font= labelfontsize, tickfontsize = ticksize,
                         norm=ratio_norm, colorbar_show=True, xlabel_show= True,
                         title=r"$(\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky))/EoR ", diff=True)
+
 
     figure.tight_layout()
     figure.savefig(plot_path + "Comparing_Sky_and_Beam_Errors_Post_Calibration.pdf")

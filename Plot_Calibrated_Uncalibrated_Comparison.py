@@ -25,7 +25,7 @@ def main(ssh =  False, labelfontsize = 10, ticksize= 10):
 
     # 100 frequency channels is fine for now, maybe later do a higher number to push up the k_par range
     ###### set to 251 to fill up k from -2
-    frequency_range = numpy.linspace(135, 165, 101) * 1e6
+    frequency_range = numpy.linspace(135, 165, 251) * 1e6
 
     eta, sky_only_raw, sky_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky')
     difference_data = sky_only_cal - sky_only_raw
@@ -57,7 +57,7 @@ def main(ssh =  False, labelfontsize = 10, ticksize= 10):
 
 
     figure.savefig(plot_path + "Comparing_Calibated_and_Uncalibrated.pdf")
-    if ssh:
+    if not ssh:
         pyplot.show()
 
     return
