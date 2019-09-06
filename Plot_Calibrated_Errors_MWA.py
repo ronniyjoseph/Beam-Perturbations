@@ -23,9 +23,9 @@ def main(ssh = False, labelfontsize=10, ticksize=10):
     weights = compute_weights(u_range, mwa_telescope.baseline_table.u_coordinates,
                               mwa_telescope.baseline_table.v_coordinates)
     eta, sky_only_raw, sky_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky',
-                                                                broken_baselines_weight=0.3, weights = weights)
+                                                                broken_baselines_weight=0.3*0.01, weights = weights)
     eta, sky_and_beam_raw, sky_and_beam_cal = residual_ps_error(u_range, frequency_range, residuals='both',
-                                                                broken_baselines_weight=0.3, weights= weights)
+                                                                broken_baselines_weight=0.3*0.01, weights= weights)
     fiducial_ps = fiducial_eor(u_range, eta)
 
     difference_cal = sky_and_beam_cal - sky_only_cal
