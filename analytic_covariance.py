@@ -92,22 +92,6 @@ def beam_covariance(u, v, nu, dx=1):
         numpy.sum(numpy.exp(-2 * numpy.pi ** 2 * sigma_D2 * ((u * nn2 / nu[0] - xx / c * nn2) ** 2 +
                                                              (v * nn2 / nu[0] - yy / c * nn2) ** 2)), axis=-1)
 
-    # figs, axs = pyplot.subplots(2,3)
-    # a_im = axs[0, 0].pcolor(nu, nu, A)
-    # b_im = axs[0, 1].pcolor(nu, nu, B)
-    # c_im = axs[0, 2].pcolor(nu, nu, C)
-    # d_im = axs[1, 0].pcolor(nu, nu, D)
-    # e_im = axs[1, 1].pcolor(nu, nu, E)
-    # colorbar(a_im)
-    # colorbar(b_im)
-    # colorbar(c_im)
-    # colorbar(d_im)
-    # colorbar(e_im)
-    # figs.tight_layout()
-    # pyplot.show()
-    #
-    # print(mu_2_m/(len(x_offsets)*mu_2_r))
-
     return A + B + C + D + E
 
 
@@ -331,7 +315,7 @@ def gain_error_covariance(u_range, frequency_range, residuals='both', weights=No
         gain_error_covariance[u_index, :, :] = residual_covariance / model_normalisation
 
     if weights is None:
-        gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) * (len(u_range)/(127*8000)) ** 2
+        gain_averaged_covariance = numpy.sum(gain_error_covariance, axis=0) * (1/(127*len(u_range))) ** 2
     else:
         gain_averaged_covariance = gain_error_covariance.copy()
         for u_index in range(len(u_range)):
@@ -350,7 +334,7 @@ def compute_weights(u_cells, u, v):
     counts, bin_edges = numpy.histogram(baseline_lengths, bins=u_bin_edges)
     prime, unprime = numpy.meshgrid(counts/len(baseline_lengths), counts/len(baseline_lengths))
 
-    weights = prime*unprime*(1/127)**2
+    weights = prime*unprime*(2/127)**2
 
     return weights
 
