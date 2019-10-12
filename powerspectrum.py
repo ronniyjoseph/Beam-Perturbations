@@ -5,7 +5,7 @@ import matplotlib
 from matplotlib import pyplot
 import matplotlib.colors as colors
 
-from generaltools import colorbar
+from plottools import colorbar
 from generaltools import symlog_bounds
 from radiotelescope import beam_width
 

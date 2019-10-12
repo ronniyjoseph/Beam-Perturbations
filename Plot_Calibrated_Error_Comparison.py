@@ -7,7 +7,7 @@ from Plot_Fiducial_PS import fiducial_eor
 import argparse
 
 
-def main(ssh = False, labelfontsize = 10, ticksize= 10):
+def main(ssh = False, labelfontsize = 12, ticksize= 11):
     plot_path = "../../Plots/Analytic_Covariance/"
     u_range = numpy.logspace(0, numpy.log10(500), 100)
 
@@ -38,8 +38,8 @@ def main(ssh = False, labelfontsize = 10, ticksize= 10):
     ratio_norm = colors.SymLogNorm(linthresh= 1e1, linscale = 1, vmin = -1e1, vmax = 1e5)
     plot_power_spectrum(u_range, eta, frequency_range, difference_cal/fiducial_ps,
                         axes=axes[2], axes_label_font= labelfontsize, tickfontsize = ticksize,
-                        norm=ratio_norm, colorbar_show=True, xlabel_show= True,
-                        title=r"$(\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky))/EoR ", diff=True)
+                        norm=ratio_norm, colorbar_show=True, xlabel_show= True, z_label ="Difference Ratio",
+                        title=r"$(\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky))/$\mathbf{C}_{s}$ ", diff=True)
 
 
     figure.tight_layout()

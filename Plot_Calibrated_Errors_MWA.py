@@ -11,7 +11,7 @@ from plottools import plot_power_spectrum
 from Plot_Fiducial_PS import fiducial_eor
 
 
-def main(ssh = False, labelfontsize=10, ticksize=10):
+def main(ssh = False, labelfontsize=12, ticksize=11):
     plot_path = "../../Plots/Analytic_Covariance/"
     mwa_position_path = "./Data/MWA_Compact_Coordinates.txt"
     mwa_telescope = RadioTelescope(load=True, path=mwa_position_path)
@@ -19,13 +19,13 @@ def main(ssh = False, labelfontsize=10, ticksize=10):
     u_range = numpy.logspace(1, numpy.log10(500), 100)
 
     # 100 frequency channels is fine for now, maybe later do a higher number to push up the k_par range
-    frequency_range = numpy.linspace(135, 165, 101) * 1e6
+    frequency_range = numpy.linspace(135, 165, 251) * 1e6
     weights = compute_weights(u_range, mwa_telescope.baseline_table.u_coordinates,
                               mwa_telescope.baseline_table.v_coordinates)
     eta, sky_only_raw, sky_only_cal = residual_ps_error(u_range, frequency_range, residuals='sky',
-                                                                broken_baselines_weight=0.3*0.01, weights = weights)
+                                                                broken_baselines_weight=0.3, weights = weights)
     eta, sky_and_beam_raw, sky_and_beam_cal = residual_ps_error(u_range, frequency_range, residuals='both',
-                                                                broken_baselines_weight=0.3*0.01, weights= weights)
+                                                                broken_baselines_weight=0.3, weights= weights)
     fiducial_ps = fiducial_eor(u_range, eta)
 
     difference_cal = sky_and_beam_cal - sky_only_cal
@@ -34,8 +34,8 @@ def main(ssh = False, labelfontsize=10, ticksize=10):
 
     ps_norm = colors.LogNorm(vmin=1e2, vmax=1e15)
     plot_power_spectrum(u_range, eta, frequency_range, sky_and_beam_cal,
-                        title=r"MWA $\mathbf{C}_{r}$(sky + beam)", axes=axes[0],
-                        axes_label_font=labelfontsize, tickfontsize=ticksize, norm=ps_norm,
+                        title=r"$\mathbf{C}_{r}$(sky + beam)", axes=axes[0],
+                        axes_label_font=labelfontsize, tickfontsize=ticksize, norm=ps_norm, ylabel_show=True,
                         xlabel_show=True, colorbar_show=True)
 
     diff_norm = colors.SymLogNorm(linthresh=1e2, linscale=1.5, vmin=-1e12, vmax=1e12)
@@ -43,14 +43,14 @@ def main(ssh = False, labelfontsize=10, ticksize=10):
     plot_power_spectrum(u_range, eta, frequency_range, difference_cal,
                         axes=axes[1], axes_label_font=labelfontsize, tickfontsize=ticksize,
                         norm=diff_norm, colorbar_show=True, xlabel_show=True,
-                        title=r" MWA $\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky) ", diff=True, colormap='coolwarm')
+                        title=r"$\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky) ", diff=True, colormap='coolwarm')
 
-    ratio_norm = colors.SymLogNorm(linthresh= 1e1, linscale = 1, vmin = -1e1, vmax = 1e5)
+    ratio_norm = colors.SymLogNorm(linthresh= 1e1, linscale = 0.5, vmin = -1e1, vmax = 1e3)
 
     plot_power_spectrum(u_range, eta, frequency_range, difference_cal / fiducial_ps,
                         axes=axes[2], axes_label_font=labelfontsize, tickfontsize=ticksize,
-                        norm=ratio_norm, colorbar_show=True, xlabel_show=True,
-                        title=r"$(\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky))/EoR ", diff=True)
+                        norm=ratio_norm, colorbar_show=True, colorbar_limits='neither', xlabel_show=True, z_label ="Difference Ratio",
+                        title=r"$(\mathbf{C}_{r}$(sky + beam) - $\mathbf{C}_{r}$(sky))/$\mathbf{C}_{s}$ ", diff=True)
 
     figure.tight_layout()
     figure.savefig(plot_path + "Comparing_Sky_and_Beam_Errors_Post_Calibration_MWA.pdf")

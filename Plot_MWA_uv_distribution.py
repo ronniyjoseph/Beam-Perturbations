@@ -14,7 +14,7 @@ from radiotelescope import RadioTelescope
 from generaltools import from_u_to_k_perp
 
 
-def main(ssh=False, labelfontsize=10, ticksize=10, plot_name="Baseline_Distribution_MWA.pdf"):
+def main(ssh=False, labelfontsize=13, tickfontsize=11, plot_name="Baseline_Distribution_MWA.pdf"):
     plot_path = "../../Plots/Analytic_Covariance/"
     u_range = numpy.logspace(0, numpy.log10(500), 100)
     frequency_range = numpy.linspace(135, 165, 251) * 1e6
@@ -39,6 +39,9 @@ def main(ssh=False, labelfontsize=10, ticksize=10, plot_name="Baseline_Distribut
     axes.set_xscale('log')
     axes.set_xlabel(x_label, fontsize=labelfontsize)
     axes.set_ylabel('Fraction of Baselines', fontsize=labelfontsize)
+
+    axes.tick_params(axis='both', which='major', labelsize=tickfontsize)
+
     figure.tight_layout()
 
     figure.savefig(plot_path + plot_name)

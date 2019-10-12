@@ -18,7 +18,7 @@ from plottools import plot_power_spectrum
 from Plot_Fiducial_PS import fiducial_eor
 
 
-def main(ssh =  False, labelfontsize = 10, ticksize= 10):
+def main(ssh =  False, labelfontsize = 12, ticksize= 11):
     plot_path = "../../Plots/Analytic_Covariance/"
 
     u_range = numpy.logspace(0, numpy.log10(500), 100)
@@ -50,8 +50,8 @@ def main(ssh =  False, labelfontsize = 10, ticksize= 10):
     # Plot ratios with uncalibrated
     plot_power_spectrum(u_range, eta, frequency_range, difference_data/fiducial_ps,
                         axes=axes[2], axes_label_font= labelfontsize, tickfontsize = ticksize,
-                        xlabel_show= True, colorbar_show=True, norm =ratio_norm,
-                        title=r"$(\mathbf{C}_{r}$(sky) - $\mathbf{C}_{\mathrm{sky}}$)/EoR ")
+                        xlabel_show= True, colorbar_show=True, norm =ratio_norm, z_label ="Difference Ratio",
+                        title=r"$(\mathbf{C}_{r}$(sky) - $\mathbf{C}_{\mathrm{sky}}$)/$\mathbf{C}_{s}$")
 
     figure.tight_layout()
 

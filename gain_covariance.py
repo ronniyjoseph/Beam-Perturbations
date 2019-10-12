@@ -12,7 +12,7 @@ from analytic_covariance import moment_returner
 from analytic_covariance import dft_matrix
 from analytic_covariance import blackman_harris_taper
 from analytic_covariance import plot_PS
-from analytic_covariance import calculate_total_2DPS
+#from analytic_covariance import calculate_total_2DPS
 
 
 def gain_variance(nu, path):

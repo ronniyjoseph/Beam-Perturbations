@@ -287,8 +287,6 @@ def apparent_fluxes_numba(source_population, frequency_range, antenna_diameter =
     return apparent_fluxes.astype(complex)
 
 
-
-
 def get_observations_dumb(source_population, baseline_table, frequency_range):
     observations = numpy.zeros((baseline_table.number_of_baselines, len(frequency_range)), dtype=complex)
     for source_index in range(len(source_population.fluxes)):
@@ -309,8 +307,6 @@ def get_observations_dumb(source_population, baseline_table, frequency_range):
                 observations[baseline_index, frequency_index] += source_flux*beam_1*beam_2*kernel
 
     return observations
-
-
 
 
 if __name__ == "__main__":

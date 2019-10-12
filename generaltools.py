@@ -147,7 +147,7 @@ def uv_list_to_baseline_measurements(baseline_table_object, frequency, visibilit
 
 
 def visibility_extractor(baseline_table_object, sky_image, frequency, antenna1_response,
-                            antenna2_response, padding_factor = 3, interpolation = 'spline', verbose_time = True):
+                            antenna2_response, padding_factor = 3, interpolation = 'spline', verbose_time = False):
 
     image = sky_image * antenna1_response * numpy.conj(antenna2_response)
 

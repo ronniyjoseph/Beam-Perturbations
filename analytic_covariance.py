@@ -38,8 +38,8 @@ def beam_covariance(u, v, nu, dx=1):
     nn1, nn2, xx = numpy.meshgrid(nu, nu, x_offsets)
     nn1, nn2, yy = numpy.meshgrid(nu, nu, y_offsets)
 
-    mu_1_r = moment_returner(1, S_low = 400e-3,  S_high=1)
-    mu_2_r = moment_returner(2, S_low = 400e-3, S_high=1)
+    mu_1_r = moment_returner(1, S_low = 100e-3,  S_high=1)
+    mu_2_r = moment_returner(2, S_low = 100e-3, S_high=1)
 
     mu_1_m = moment_returner(1, S_low=1, S_high=10)
     mu_2_m = moment_returner(2, S_low=1, S_high=10)

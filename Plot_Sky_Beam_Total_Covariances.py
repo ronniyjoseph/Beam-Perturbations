@@ -11,7 +11,7 @@ from Plot_Calibrated_Error_Comparison import plot_power_spectrum
 from analytic_covariance import plot_PS
 
 
-def main(labelfontsize = 10, ticksize= 10):
+def main(labelfontsize = 12, ticksize= 11):
     k_perp_range = numpy.array([1e-4, 1.1e-1])
 
     u_range = numpy.logspace(-1, numpy.log10(200), 100)

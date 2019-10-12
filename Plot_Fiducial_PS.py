@@ -8,12 +8,12 @@ from analytic_covariance import dft_matrix
 from plottools import plot_power_spectrum
 
 
-def main(ssh = False, labelfontsize = 10, ticksize= 10):
+def main(ssh = False, labelfontsize = 13, ticksize= 11):
     output_path = "../../Plots/Analytic_Covariance/"
     path = "/home/ronniyjoseph/Sync/PhD/Projects/beam_perturbations/code/tile_beam_perturbations/Data/"
     file = "redshift8.csv"
 
-    frequency_range = numpy.linspace(135, 165, 101) * 1e6
+    frequency_range = numpy.linspace(135, 165, 251) * 1e6
     u_range = numpy.logspace(0, numpy.log10(500), 100)
     dftmatrix, eta = dft_matrix(frequency_range)
     eta = eta[:len(eta)//2]
@@ -24,8 +24,8 @@ def main(ssh = False, labelfontsize = 10, ticksize= 10):
     interpolation = interpolate(u_range, eta, u_fiducial, eta_fiducial, fiducial_eor)
 
     plot_power_spectrum(u_range, eta, frequency_range, interpolation,
-                        ratio=True, axes=fiducial_axes, axes_label_font=labelfontsize, tickfontsize=ticksize,
-                        xlabel_show=True, colorbar_show=True, norm=norm, title="Fiducial EoR Power Spectrum z = 8")
+                        ratio=True, axes=fiducial_axes, axes_label_font=labelfontsize, tickfontsize=ticksize, ylabel_show=True,
+                        xlabel_show=True, colorbar_show=True, norm=norm, title=r"Fiducial EoR Power Spectrum $z = 8$")
 
     fiducial_figure.tight_layout()
     fiducial_figure.savefig(output_path + "Fiducial_EoR_PS_z8.pdf" )

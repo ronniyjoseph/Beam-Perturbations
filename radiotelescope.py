@@ -6,16 +6,20 @@ from scipy.constants import c
 
 class RadioTelescope:
 
-    def __init__(self, load=True, path=None, shape='linear', frequency_channels=None, verbose=False):
+    def __init__(self, load=True, path=None, shape=None, frequency_channels=None, verbose=False):
         if verbose:
             print("Creating the radio telescope")
-        self.antenna_positions = AntennaPositions(load, path, shape, verbose)
+        if shape is not None:
+            self.antenna_positions = AntennaPositions(False, None, shape, verbose)
+        if load:
+            self.antenna_positions = AntennaPositions(True, path, None, verbose)
+
         self.baseline_table = BaselineTable(self.antenna_positions, frequency_channels, verbose)
         return
 
 
 class AntennaPositions:
-    def __init__(self, load=True, path=None, shape='linear', verbose = False):
+    def __init__(self, load=True, path=None, shape='linear', verbose=False):
         if load:
             if path == None:
                 raise ValueError("Specificy the antenna position path if loading position data")
@@ -29,7 +33,6 @@ class AntennaPositions:
         self.x_coordinates = antenna_data[:, 1]
         self.y_coordinates = antenna_data[:, 2]
         self.z_coordinates = antenna_data[:, 3]
-
         return
 
     def number_antennas(self):
@@ -37,7 +40,7 @@ class AntennaPositions:
 
 
 class BaselineTable:
-    def __init__(self, position_table = None, frequency_channels=None, verbose=False):
+    def __init__(self, position_table=None, frequency_channels=None, verbose=False):
         self.antenna_id1 = None
         self.antenna_id2 = None
         self.u_coordinates = None
@@ -141,6 +144,7 @@ class BaselineTable:
 
         return subtable
 
+
 def beam_width(frequency, diameter=4, epsilon=1):
     sigma = epsilon * c / (frequency * diameter)
     width = numpy.sin(0.5 * sigma)
@@ -154,6 +158,7 @@ def ideal_gaussian_beam(source_l, source_m, nu, diameter=4, epsilon=1):
 
     return beam_attenuation
 
+
 def broken_gaussian_beam(source_l, source_m, nu, faulty_dipole, diameter=4, epsilon=1, dx=1.1):
     wavelength = c / nu
     x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
@@ -162,7 +167,7 @@ def broken_gaussian_beam(source_l, source_m, nu, faulty_dipole, diameter=4, epsi
     y_offsets = numpy.array([1.5, 1.5, 1.5, 1.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5,
                              -0.5, -0.5, -1.5, -1.5, -1.5, -1.5], dtype=numpy.float32) * dx
 
-    dipole_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter / 4., epsilon =epsilon)
+    dipole_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter / 4., epsilon=epsilon)
     ideal_tile_beam = ideal_gaussian_beam(source_l, source_m, nu, diameter)
     broken_beam = ideal_tile_beam - 1 / 16 * dipole_beam * numpy.exp(
         -2. * numpy.pi * 1j * (x_offsets[faulty_dipole] * numpy.abs(source_l) +
@@ -170,7 +175,8 @@ def broken_gaussian_beam(source_l, source_m, nu, faulty_dipole, diameter=4, epsi
 
     return broken_beam
 
-def ideal_mwa_beam_loader(theta, phi, frequency, load=True, verbose = False):
+
+def ideal_mwa_beam_loader(theta, phi, frequency, load=True, verbose=False):
     if not load:
         if verbose:
             print("Creating the idealised MWA beam\n")
@@ -232,8 +238,6 @@ def select_baselines(baseline_coordinates, baseline_selection_indices):
 
 def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, weights=1, dipole_type='cross',
                   gaussian_width=30 / 180 * numpy.pi):
-
-
     dipole_sep = 1.1  # meters
     x_offsets = numpy.array([-1.5, -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5, -1.5,
                              -0.5, 0.5, 1.5, -1.5, -0.5, 0.5, 1.5], dtype=numpy.float32) * dipole_sep
@@ -256,19 +260,19 @@ def mwa_tile_beam(theta, phi, target_theta=0, target_phi=0, frequency=150e6, wei
     array_factor = get_array_factor(x_offsets, y_offsets, z_offsets, weights, theta, phi, target_theta, target_phi,
                                     frequency)
 
-    tile_response = array_factor*ground_plane_field*dipole_jones_matrix
+    tile_response = array_factor * ground_plane_field * dipole_jones_matrix
     tile_response[numpy.isnan(tile_response)] = 0
 
     if len(theta.shape) > 2:
         beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response, axis=(0, 1)))
     else:
         beam_normalisation = numpy.add(numpy.zeros(tile_response.shape), numpy.amax(tile_response))
-    normalised_response = tile_response / beam_normalisation*numpy.sum(weights)/16
+    normalised_response = tile_response / beam_normalisation * numpy.sum(weights) / 16
 
     return normalised_response
 
-def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointing=0, frequency=150e6):
 
+def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointing=0, frequency=150e6):
     wavelength = c / frequency
     number_dipoles = len(x)
 
@@ -285,31 +289,31 @@ def get_array_factor(x, y, z, weights, theta, phi, theta_pointing=0, phi_pointin
         complex_exponent = -1j * ((k_x - k_x0) * x[i] + (k_y - k_y0) * y[i] + (k_z - k_z0) * z[i])
 
         # !This step takes a long time, look into optimisation through vectorisation/clever numpy usage
-        dipole_factor = weights[i]*numpy.exp(complex_exponent)
+        dipole_factor = weights[i] * numpy.exp(complex_exponent)
 
         array_factor_map += dipole_factor
 
-    #filter all NaN
+    # filter all NaN
     array_factor_map[numpy.isnan(array_factor_map)] = 0
-    array_factor_map = array_factor_map/numpy.sum(weights)
+    array_factor_map = array_factor_map / numpy.sum(weights)
 
     return array_factor_map
 
-def electric_field_ground_plane(theta, frequency=150e6 , height= 0.3):
-    wavelength = c/frequency
-    ground_plane_electric_field = numpy.sin(2.*numpy.pi*height/wavelength*numpy.cos(theta))
+
+def electric_field_ground_plane(theta, frequency=150e6, height=0.3):
+    wavelength = c / frequency
+    ground_plane_electric_field = numpy.sin(2. * numpy.pi * height / wavelength * numpy.cos(theta))
     return ground_plane_electric_field
+
 
 def cross_dipole(theta):
     response = numpy.cos(theta)
     return response
 
 
-
 def xyz_position_loader(path):
     antenna_data = numpy.loadtxt(path)
-
-    #Check whether antenna ids are passed are in here
+    # Check whether antenna ids are passed are in here
     if antenna_data.shape[1] != 4:
         antenna_ids = numpy.arange(1, antenna_data.shape[0] + 1, 1).reshape((antenna_data.shape[0], 1))
         antenna_data = numpy.hstack((antenna_ids, antenna_data))
@@ -333,7 +337,7 @@ def xyz_position_creator(shape, verbose=False):
 
 		'square': produces a square array
 			shape[1]: 1/2 side of the square in meters
-			shape[2]: minimum baseline length
+			shape[2]: number of antennas along 1 side
 			shape[3]: x position of square
 			shape[4]: y position of square
 
@@ -346,6 +350,7 @@ def xyz_position_creator(shape, verbose=False):
 			shape[2]: number of elements in the EW-linear array
 
 	"""
+
     if shape[0] == "square" or shape[0] == 'doublesquare':
         if verbose:
             print("")
@@ -442,9 +447,94 @@ def xyz_position_creator(shape, verbose=False):
         xyz_coordinates[:, 0] = numpy.arange(shape[2]) + 1001
         if len(shape) == 3:
             xyz_coordinates[:, 1] = numpy.linspace(-shape[1], shape[1], shape[2])
-        elif len(shape) == 4 and shape[3]=='log':
+        elif len(shape) == 4 and shape[3] == 'log':
             xyz_coordinates[:, 1] = numpy.logspace(1, numpy.log10(shape[1]), shape[2])
         else:
             pass
 
     return xyz_coordinates
+
+
+def redundant_baseline_finder(uv_positions, baseline_direction,verbose=False):
+    """
+	"""
+
+    ################################################################
+    minimum_baselines = 3.
+    wave_fraction = 1. / 6
+    ################################################################
+
+    n_baselines = uv_positions.shape[0]
+    n_frequencies = uv_positions.shape[2]
+    middle_index = (n_frequencies + 1) // 2 - 1
+    # create empty table
+    baseline_selection = numpy.zeros((n_baselines, 8, n_frequencies))
+    # arbitrary counters
+    # Let's find all the redundant baselines within our threshold
+    group_counter = 0
+    k = 0
+    # Go through all antennas, take each antenna out and all antennas
+    # which are part of the not redundant enough group
+    while uv_positions.shape[0] > 0:
+        # calculate uv separation at the calibration wavelength
+        separation = numpy.sqrt(
+            (uv_positions[:, 2, middle_index] - uv_positions[0, 2, middle_index]) ** 2. +
+            (uv_positions[:, 3, middle_index] - uv_positions[0, 3, middle_index]) ** 2.)
+        # find all baselines within the lambda fraction
+        select_indices = numpy.where(separation <= wave_fraction)
+
+        # is this number larger than the minimum number
+        if len(select_indices[0]) >= minimum_baselines:
+            # go through the selected baselines
+
+            for i in range(len(select_indices[0])):
+                # add antenna number
+                baseline_selection[k, 0, :] = uv_positions[select_indices[0][i], 0, :]
+                baseline_selection[k, 1, :] = uv_positions[select_indices[0][i], 1, :]
+                # add coordinates uvw
+                baseline_selection[k, 2, :] = uv_positions[select_indices[0][i], 2, :]
+                baseline_selection[k, 3, :] = uv_positions[select_indices[0][i], 3, :]
+                baseline_selection[k, 4, :] = uv_positions[select_indices[0][i], 4, :]
+                # add the gains
+                baseline_selection[k, 5, :] = uv_positions[select_indices[0][i], 5, :]
+                baseline_selection[k, 6, :] = uv_positions[select_indices[0][i], 6, :]
+                # add baseline group identifier
+                baseline_selection[k, 7, :] = 50000000 + 52 * (group_counter + 1)
+
+                k += 1
+            group_counter += 1
+        # update the list, take out the used antennas
+        all_indices = numpy.arange(len(uv_positions))
+        unselected_indices = numpy.setdiff1d(all_indices, select_indices[0])
+
+        uv_positions = uv_positions[unselected_indices]
+
+    if verbose:
+        print("There are", k, "redundant baselines in this array.")
+        print("There are", group_counter, "redundant groups in this array")
+
+    # find the filled entries
+    non_zero_indices = numpy.where(baseline_selection[:, 0, 0] != 0)
+    # remove the empty entries
+    baseline_selection = baseline_selection[non_zero_indices[0], :, :]
+    # Sort on length
+    baseline_lengths = numpy.sqrt(baseline_selection[:, 2, middle_index] ** 2 \
+                                  + baseline_selection[:, 3, middle_index] ** 2)
+
+    sorted_baselines = baseline_selection[numpy.argsort(baseline_lengths), :, :]
+
+    sorted_baselines = baseline_selection[numpy.argsort(sorted_baselines[:, 7, middle_index]), :, :]
+    # sorted_baselines = sorted_baselines[numpy.argsort(sorted_baselines[:,1,middle_index]),:,:]
+    # if we want only the EW select all the  uv positions around v = 0
+    if baseline_direction == "EW":
+        ew_indices = numpy.where(abs(sorted_baselines[:, 3, middle_index]) < 5. / wavelength)
+        selected_baselines = sorted_baselines[ew_indices[0], :, :]
+    elif baseline_direction == "NS":
+        ns_indices = numpy.where(abs(sorted_baselines[:, 2, middle_index]) < 5. / wavelength)
+        selected_baselines = sorted_baselines[ns_indices[0], :, :]
+    elif baseline_direction == "ALL":
+        selected_baselines = sorted_baselines
+    else:
+        sys.exit("The given redundant baseline direction is invalid:" + \
+                 " please use 'EW', 'ALL'")
+    return sorted_baselines

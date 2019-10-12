@@ -6,18 +6,18 @@ from generaltools import from_u_to_k_perp
 from generaltools import from_jansky_to_milikelvin
 
 
-def colorbar(mappable):
+def colorbar(mappable, extend = 'neither'):
     ax = mappable.axes
     fig = ax.figure
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
-    return fig.colorbar(mappable, cax=cax)
+    return fig.colorbar(mappable, cax=cax, extend = extend)
 
 
 def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axes=None,
                         colormap = "viridis", axes_label_font=20, tickfontsize=15, xlabel_show=False, ylabel_show=False,
-                        zlabel_show=False, z_label = None, return_norm = False, colorbar_show = False, ratio = False,
-                        diff = False, x_range = None, y_range = None):
+                        zlabel_show=False, z_label = None, return_norm = False, colorbar_show = False, colorbar_limits = 'neither',
+                        ratio = False, diff = False, x_range = None, y_range = None):
 
     central_frequency = nu[int(len(nu) / 2)]
     x_values = from_u_to_k_perp(u_bins, central_frequency)
@@ -28,10 +28,12 @@ def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axe
     else:
         z_values = from_jansky_to_milikelvin(data, nu)
 
-    x_label = r"$k_{\perp}$ [Mpc$^{-1}$]"
-    y_label = r"$k_{\parallel}$ [Mpc$^{-1}$]"
+    x_label = r"$k_{\perp}$ [$h$Mpc$^{-1}$]"
+    y_label = r"$k_{\parallel}$ [$h$Mpc$^{-1}$]"
     if z_label is None:
-        z_label = r"Variance [mK$^2$ Mpc$^3$ ]"
+        z_label = r"Variance [mK$^2$ $h^{-3}$Mpc$^3$ ]"
+    elif z_label == False:
+        z_label = None
 
     if x_range is None:
         axes.set_xlim(9e-3, 3e-1)
@@ -50,7 +52,7 @@ def plot_power_spectrum(u_bins, eta_bins, nu, data, norm = None, title=None, axe
 
     psplot = axes.pcolor(x_values, y_values, z_values.T, cmap=colormap, rasterized=True, norm=norm)
     if colorbar_show:
-        cax = colorbar(psplot)
+        cax = colorbar(psplot, extend=colorbar_limits)
         cax.ax.tick_params(axis='both', which='major', labelsize=tickfontsize)
         cax.set_label(z_label, fontsize=axes_label_font)
 
