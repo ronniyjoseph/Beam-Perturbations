@@ -19,20 +19,26 @@ class RadioTelescope:
 
 
 class AntennaPositions:
-    def __init__(self, load=True, path=None, shape='linear', verbose=False):
+    def __init__(self, load=True, path=None, shape=None, verbose=False):
         if load:
             if path == None:
                 raise ValueError("Specificy the antenna position path if loading position data")
             else:
-
                 antenna_data = xyz_position_loader(path)
-        else:
+
+        if shape is not None:
             antenna_data = xyz_position_creator(shape, verbose=verbose)
 
-        self.antenna_ids = antenna_data[:, 0]
-        self.x_coordinates = antenna_data[:, 1]
-        self.y_coordinates = antenna_data[:, 2]
-        self.z_coordinates = antenna_data[:, 3]
+        if load or shape is not None:
+            self.antenna_ids = antenna_data[:, 0]
+            self.x_coordinates = antenna_data[:, 1]
+            self.y_coordinates = antenna_data[:, 2]
+            self.z_coordinates = antenna_data[:, 3]
+        else:
+            self.antenna_ids = None
+            self.x_coordinates = None
+            self.y_coordinates = None
+            self.z_coordinates = None
         return
 
     def number_antennas(self):
@@ -327,29 +333,28 @@ def xyz_position_loader(path):
 
 
 def xyz_position_creator(shape, verbose=False):
-    # type: (object) -> object
     """
-	Generates an array lay-out defined by input parameters, returns
-	x,y,z coordinates of each antenna in the array
+    Generates an array lay-out defined by input parameters, returns
+    x,y,z coordinates of each antenna in the array
 
-	shape	: list of array parameters
-	shape[0]	: string value 'square', 'hex', 'doublehex', 'linear'
+    shape	: list of array parameters
+    shape[0]	: string value 'square', 'hex', 'doublehex', 'linear'
 
-		'square': produces a square array
-			shape[1]: 1/2 side of the square in meters
-			shape[2]: number of antennas along 1 side
-			shape[3]: x position of square
-			shape[4]: y position of square
+        'square': produces a square array
+            shape[1]: 1/2 side of the square in meters
+            shape[2]: number of antennas along 1 side
+            shape[3]: x position of square
+            shape[4]: y position of square
 
-		'hex': produces a hex array
+        'hex': produces a hex array
 
-		'doublehex': produces a double hex array
+        'doublehex': produces a double hex array
 
-		'linear': produces a linear array
-			shape[1]: x-outeredges of the array
-			shape[2]: number of elements in the EW-linear array
+        'linear': produces a linear array
+            shape[1]: x-outeredges of the array
+            shape[2]: number of elements in the EW-linear array
 
-	"""
+    """
 
     if shape[0] == "square" or shape[0] == 'doublesquare':
         if verbose:
@@ -455,7 +460,7 @@ def xyz_position_creator(shape, verbose=False):
     return xyz_coordinates
 
 
-def redundant_baseline_finder(uv_positions, baseline_direction,verbose=False):
+def redundant_baseline_finder(uv_positions, baseline_direction, verbose=False):
     """
 	"""
 
