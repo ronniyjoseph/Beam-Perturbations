@@ -113,7 +113,7 @@ class SkyRealisation:
 
         return sky_selection
 
-    def create_visibility_model(self, baseline_table_object, frequency_channels, antenna_size, mode='analytic', interpolation='spline',
+    def create_visibility_model(self, baseline_table_object, frequency_channels, antenna_size=4, mode='analytic', interpolation='spline',
                                padding_factor=3, parallel=False):
 
         if mode == 'analytic':
