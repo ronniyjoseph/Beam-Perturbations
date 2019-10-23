@@ -9,12 +9,15 @@ class RadioTelescope:
     def __init__(self, load=True, path=None, shape=None, frequency_channels=None, verbose=False):
         if verbose:
             print("Creating the radio telescope")
+        self.antenna_positions = None
         if shape is not None:
             self.antenna_positions = AntennaPositions(False, None, shape, verbose)
         if load:
             self.antenna_positions = AntennaPositions(True, path, None, verbose)
-
-        self.baseline_table = BaselineTable(self.antenna_positions, frequency_channels, verbose)
+        if shape is not None or load:
+            self.baseline_table = BaselineTable(self.antenna_positions, frequency_channels, verbose)
+        else:
+            self.baseline_table = None
         return
 
 
@@ -200,9 +203,10 @@ def ideal_mwa_beam_loader(theta, phi, frequency, load=True, verbose=False):
     return ideal_beam
 
 
-def broken_mwa_beam_loader(theta, phi, frequency, faulty_dipole, load=True):
+def broken_mwa_beam_loader(theta, phi, frequency, faulty_dipole = None, load=True):
     dipole_weights = numpy.zeros(16) + 1
-    dipole_weights[faulty_dipole] = 0
+    if faulty_dipole is not None:
+        dipole_weights[faulty_dipole] = 0
     if load:
         print(f"Loading perturbed tile beam for dipole {faulty_dipole}")
         perturbed_beam = numpy.load(f"beam_maps/perturbed_dipole_{faulty_dipole}_map.npy")
